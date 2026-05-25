@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CV Blindé — Pour que ton CV arrive jusqu'au bout</title>
+<meta name="description" content="Outil libre et gratuit pour rendre ton CV lisible par les ATS, ces logiciels qui filtrent les candidatures avant le recruteur humain.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --cream: #F4ECE1;
+    --cream-deep: #E8DCC9;
+    --ink: #1B1B1B;
+    --ink-soft: #3A3A3A;
+    --ink-light: #6A6A6A;
+    --terra: #C84B31;
+    --terra-deep: #A33D26;
+    --terra-soft: rgba(200, 75, 49, 0.12);
+    --slate: #3D5A6C;
+    --line: #D4C8B5;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+    background-size: 24px 24px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== HERO ===== */
+
+  .hero {
+    text-align: center;
+    padding: 4rem 0 5rem;
+  }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--terra);
+    margin-bottom: 2rem;
+    display: inline-block;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--terra);
+    border-radius: 999px;
+  }
+
+  h1.hero-title {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: clamp(2.8rem, 7vw, 5rem);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin-bottom: 1.5rem;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  h1.hero-title em { font-style: italic; color: var(--terra); }
+
+  .hero-tagline {
+    font-size: 1.2rem;
+    color: var(--ink-soft);
+    max-width: 600px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.6;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ===== BUTTONS ===== */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    background: var(--terra);
+    color: var(--cream);
+    border: none;
+    border-radius: 2px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .btn:hover {
+    background: var(--terra-deep);
+    transform: translateY(-1px);
+  }
+  .btn.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+  }
+  .btn.ghost:hover {
+    background: var(--ink);
+    color: var(--cream);
+  }
+  .btn .arrow {
+    transition: transform 0.15s;
+  }
+  .btn:hover .arrow { transform: translateX(3px); }
+
+  /* ===== DEMO BLOCK — Vue humaine vs ATS ===== */
+
+  .demo {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 2rem;
+    margin: 0 0 5rem;
+  }
+
+  .demo-label {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 1.5rem;
+  }
+
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  @media (max-width: 720px) {
+    .demo-grid { grid-template-columns: 1fr; }
+    .demo-vs { transform: rotate(90deg); padding: 1rem 0; }
+  }
+
+  .demo-side {
+    border: 1px solid var(--line);
+    padding: 1.2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .demo-side h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .demo-side h4 .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--slate);
+  }
+  .demo-side.machine h4 .dot { background: var(--terra); }
+
+  .demo-vs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 1.5rem;
+    color: var(--ink-light);
+    padding: 0 0.5rem;
+  }
+
+  /* Fake CV visual */
+  .fake-cv {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .fake-cv-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.4rem;
+    line-height: 1.1;
+    margin-bottom: 0.2rem;
+  }
+  .fake-cv-job {
+    font-size: 0.75rem;
+    color: var(--terra);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 1rem;
+  }
+  .fake-cv-cols {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 0.8rem;
+    margin-top: 0.8rem;
+  }
+  .fake-cv-left {
+    border-right: 1px solid var(--line);
+    padding-right: 0.5rem;
+  }
+  .fake-cv-icon {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    font-size: 0.65rem;
+    color: var(--ink-soft);
+    margin-bottom: 0.4rem;
+  }
+  .fake-cv-icon-img {
+    width: 16px; height: 16px;
+    background: var(--terra);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .fake-cv-bars { margin-top: 0.5rem; }
+  .fake-cv-skill { font-size: 0.65rem; margin-bottom: 0.15rem; color: var(--ink-soft); }
+  .fake-cv-bar {
+    height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+    margin-bottom: 0.4rem;
+    overflow: hidden;
+  }
+  .fake-cv-bar > div {
+    height: 100%;
+    background: var(--slate);
+  }
+  .fake-cv-right h5 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.3rem;
+    color: var(--ink);
+  }
+  .fake-cv-right p {
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    margin-bottom: 0.6rem;
+    line-height: 1.4;
+  }
+
+  /* Fake ATS output */
+  .fake-ats {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.5;
+  }
+  .fake-ats .line {
+    padding: 0.15rem 0;
+    color: var(--ink-soft);
+  }
+  .fake-ats .num {
+    display: inline-block;
+    width: 22px;
+    color: var(--terra);
+    font-weight: 600;
+  }
+  .fake-ats .empty {
+    color: var(--ink-light);
+    font-style: italic;
+  }
+  .fake-ats .jump {
+    border-top: 1px dashed var(--terra);
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+    position: relative;
+  }
+  .fake-ats .jump::before {
+    content: '↪ saut';
+    position: absolute;
+    top: -0.5rem;
+    left: 0.3rem;
+    background: white;
+    padding: 0 0.3rem;
+    font-size: 0.55rem;
+    color: var(--terra);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ===== PROBLÈME ===== */
+
+  section.section {
+    margin-bottom: 5rem;
+  }
+
+  .section-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--terra);
+    margin-bottom: 1rem;
+  }
+
+  h2 {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    margin-bottom: 1.5rem;
+    max-width: 680px;
+  }
+  h2 em { font-style: italic; color: var(--terra); }
+
+  .lead {
+    font-size: 1.1rem;
+    color: var(--ink-soft);
+    margin-bottom: 1rem;
+    max-width: 680px;
+  }
+
+  /* ===== TOOLS CARDS ===== */
+
+  .tools {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 2.5rem;
+  }
+  @media (max-width: 720px) {
+    .tools { grid-template-columns: 1fr; }
+  }
+
+  .tool-card {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--line);
+    padding: 2rem;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s;
+  }
+  .tool-card:hover {
+    border-color: var(--ink);
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-2px);
+  }
+
+  .tool-card.primary {
+    background: var(--ink);
+    color: var(--cream);
+    border-color: var(--ink);
+  }
+  .tool-card.primary:hover {
+    background: var(--terra);
+    border-color: var(--terra);
+  }
+
+  .tool-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 0.8rem;
+  }
+  .tool-card.primary .tool-num { color: var(--line); }
+
+  .tool-card h3 {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: 1.8rem;
+    line-height: 1.1;
+    margin-bottom: 0.8rem;
+    letter-spacing: -0.01em;
+  }
+
+  .tool-card p {
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    margin-bottom: 1.2rem;
+    flex-grow: 1;
+  }
+  .tool-card.primary p { color: var(--cream); opacity: 0.8; }
+
+  .tool-card ul {
+    list-style: none;
+    margin-bottom: 1.8rem;
+    font-size: 0.85rem;
+  }
+  .tool-card ul li {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-soft);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .tool-card.primary ul li {
+    border-color: rgba(244, 236, 225, 0.15);
+    color: var(--cream);
+    opacity: 0.85;
+  }
+  .tool-card ul li::before {
+    content: '→';
+    color: var(--terra);
+    flex-shrink: 0;
+  }
+
+  .tool-card .btn {
+    align-self: flex-start;
+    margin-top: auto;
+  }
+  .tool-card.primary .btn {
+    background: var(--cream);
+    color: var(--ink);
+  }
+  .tool-card.primary .btn:hover {
+    background: var(--terra);
+    color: var(--cream);
+  }
+
+  /* ===== INFO ROW ===== */
+
+  .info-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    padding: 2.5rem 0;
+    margin-bottom: 4rem;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .info-item .info-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--terra);
+    margin-bottom: 0.5rem;
+  }
+  .info-item h4 {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: 1.2rem;
+    margin-bottom: 0.4rem;
+  }
+  .info-item p {
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+  }
+
+  /* ===== FOOTER ===== */
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--line);
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+  footer a { color: var(--terra); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  footer p { margin-bottom: 0.4rem; }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem 0.5rem 3rem; }
+    .hero { padding: 2rem 0 3rem; }
+    .demo { padding: 1.2rem; }
+    .tool-card { padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <section class="hero">
+    <span class="eyebrow">Outil libre · MIT · ne quitte pas ton navigateur</span>
+    <h1 class="hero-title">Pour que ton CV<br><em>arrive jusqu'au bout</em></h1>
+    <p class="hero-tagline">Avant qu'un humain ne lise ton CV, un logiciel le filtre. Et il filtre mal. Cet outil te montre ce que le logiciel voit, puis répare la lecture.</p>
+    <div class="hero-actions">
+      <a class="btn" href="blinder-mon-cv/">
+        Blinder mon CV
+        <span class="arrow">→</span>
+      </a>
+      <a class="btn ghost" href="#comment">Comment ça marche</a>
+    </div>
+  </section>
+
+  <!-- DEMO: vue humaine vs vue machine -->
+  <section class="demo">
+    <div class="demo-label">Le même CV, vu de deux côtés</div>
+    <div class="demo-grid">
+      <!-- Vue humaine: fake CV à colonnes -->
+      <div class="demo-side">
+        <h4><span class="dot"></span>Vue humaine</h4>
+        <div class="fake-cv">
+          <div class="fake-cv-name">Camille Dupont</div>
+          <div class="fake-cv-job">Communication digitale</div>
+          <div class="fake-cv-cols">
+            <div class="fake-cv-left">
+              <div class="fake-cv-icon"><span class="fake-cv-icon-img"></span><span>contact</span></div>
+              <div class="fake-cv-icon"><span class="fake-cv-icon-img"></span><span>Lyon</span></div>
+              <div class="fake-cv-icon"><span class="fake-cv-icon-img"></span><span>linkedin</span></div>
+              <div class="fake-cv-bars">
+                <div class="fake-cv-skill">SEO</div>
+                <div class="fake-cv-bar"><div style="width:85%"></div></div>
+                <div class="fake-cv-skill">Adobe</div>
+                <div class="fake-cv-bar"><div style="width:70%"></div></div>
+                <div class="fake-cv-skill">Anglais</div>
+                <div class="fake-cv-bar"><div style="width:90%"></div></div>
+              </div>
+            </div>
+            <div class="fake-cv-right">
+              <h5>Expérience</h5>
+              <p>Chargée de communication chez Association Lumières, 2022–2024. Pilotage social media, campagnes Meta Ads.</p>
+              <h5>Formation</h5>
+              <p>Master Communication numérique, Lyon 2, 2022.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-vs">vs</div>
+
+      <!-- Vue machine: extraction ATS désordonnée -->
+      <div class="demo-side machine">
+        <h4><span class="dot"></span>Vue machine (ATS)</h4>
+        <div class="fake-ats">
+          <div class="line"><span class="num">001</span>Camille Dupont</div>
+          <div class="line"><span class="num">002</span>Communication digitale</div>
+          <div class="line"><span class="num">003</span><span class="empty">⌀ (icône)</span></div>
+          <div class="line"><span class="num">004</span>contact</div>
+          <div class="line"><span class="num">005</span><span class="empty">⌀ (icône)</span></div>
+          <div class="line"><span class="num">006</span>Lyon</div>
+          <div class="line jump"><span class="num">007</span>Expérience</div>
+          <div class="line"><span class="num">008</span>Chargée de</div>
+          <div class="line"><span class="num">009</span>communication</div>
+          <div class="line jump"><span class="num">010</span><span class="empty">⌀ (barre SEO)</span></div>
+          <div class="line"><span class="num">011</span>chez Association</div>
+          <div class="line"><span class="num">012</span><span class="empty">⌀ (barre Adobe)</span></div>
+          <div class="line jump"><span class="num">013</span>linkedin</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLÈME -->
+  <section class="section" id="comment">
+    <div class="section-eyebrow">Le problème</div>
+    <h2>Tes candidatures sans réponse, <em>ce n'est pas toi</em>.</h2>
+    <p class="lead">Tu envoies ton CV. Pas de réponse. Tu en envoies dix de plus. Toujours rien. L'annonce est relancée trois mois plus tard. Tu te demandes si quelqu'un l'a seulement ouverte.</p>
+    <p class="lead">Réponse honnête : probablement non. Entre toi et le recruteur, il y a un <strong>ATS</strong> (Applicant Tracking System) — un logiciel qui lit ton CV avant qu'aucun humain ne le voie. Quand il rencontre des colonnes, des icônes, des graphiques de compétences ou des polices décoratives, il ne lit plus rien correctement. Tu n'es pas rejeté : tu deviens <strong>invisible</strong> dans les recherches du recruteur.</p>
+  </section>
+
+  <!-- OUTILS -->
+  <section class="section">
+    <div class="section-eyebrow">Deux outils, à toi de choisir</div>
+    <h2>Selon ce que tu as déjà <em>en main</em>.</h2>
+
+    <div class="tools">
+      <!-- Carte primaire: blinder -->
+      <div class="tool-card primary">
+        <div class="tool-num">01 · pour qui a déjà un CV</div>
+        <h3>Blinder mon CV</h3>
+        <p>Tu as un CV graphique qui te plaît. On le garde tel quel et on ajoute une page "invisible" parfaitement lisible par les machines.</p>
+        <ul>
+          <li>Diagnostic visuel : tu vois exactement ce que l'ATS lit du tien</li>
+          <li>Détection des sauts de lecture, des fragments perdus</li>
+          <li>Génération d'un PDF blindé en deux clics</li>
+          <li>Rien ne quitte ton navigateur</li>
+        </ul>
+        <a class="btn" href="blinder-mon-cv/">
+          Lancer l'outil
+          <span class="arrow">→</span>
+        </a>
+      </div>
+
+      <!-- Carte secondaire: créer -->
+      <div class="tool-card">
+        <div class="tool-num">02 · pour qui part de zéro</div>
+        <h3>Créer mon CV</h3>
+        <p>Un script Python qui fabrique un CV structuré sémantiquement à partir d'un simple fichier texte. La version chirurgicalement propre.</p>
+        <ul>
+          <li>PDF balisé avec langue déclarée et métadonnées propres</li>
+          <li>Structure linéaire, parsable à 100%</li>
+          <li>Édition dans un éditeur de texte (YAML)</li>
+          <li>Nécessite Python sur ta machine</li>
+        </ul>
+        <a class="btn ghost" href="creer-mon-cv/">
+          Voir le code
+          <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- INFO ROW -->
+  <section class="info-row">
+    <div class="info-item">
+      <div class="info-label">Privé</div>
+      <h4>Rien n'est envoyé</h4>
+      <p>Aucun serveur. Tout se passe dans ton navigateur. Ton CV ne quitte pas ta machine.</p>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Libre</div>
+      <h4>Code ouvert, MIT</h4>
+      <p>Forkable, modifiable, redistribuable. Le code est entièrement lisible.</p>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Honnête</div>
+      <h4>Aucune triche</h4>
+      <p>Pas de texte caché, pas de manipulation. Juste un texte propre lisible par les machines.</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>Code source · <a href="https://github.com/">GitHub</a> · Licence MIT</p>
+    <p>Pour comprendre en détail comment fonctionnent les ATS : <a href="EXPLICATIONS.md">EXPLICATIONS.md</a></p>
+  </footer>
+
+</div>
+
+</body>
+</html>
