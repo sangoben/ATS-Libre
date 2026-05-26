@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Démarquer mon CV — Retirer Canva et autres marques du PDF</title>
+<meta name="description" content="Supprime les marqueurs cachés de Canva, Adobe Express, VistaPrint et autres dans ton PDF, sans toucher au visuel.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+
+<style>
+  :root {
+    --cream: #F4ECE1;
+    --cream-deep: #E8DCC9;
+    --ink: #1B1B1B;
+    --ink-soft: #3A3A3A;
+    --ink-light: #6A6A6A;
+    --terra: #C84B31;
+    --terra-deep: #A33D26;
+    --terra-soft: rgba(200, 75, 49, 0.12);
+    --slate: #3D5A6C;
+    --slate-soft: rgba(61, 90, 108, 0.12);
+    --line: #D4C8B5;
+    --good: #4F7942;
+    --good-soft: rgba(79, 121, 66, 0.12);
+    --warn: #B47A1E;
+    --warn-soft: rgba(180, 122, 30, 0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+    background-size: 24px 24px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .breadcrumb {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: var(--ink-light);
+    margin-bottom: 2rem;
+  }
+  .breadcrumb a { color: var(--terra); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding-top: 1rem;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--terra);
+    margin-bottom: 1.5rem;
+    display: inline-block;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--terra);
+    border-radius: 999px;
+  }
+  h1 {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.2rem;
+  }
+  h1 em { font-style: italic; color: var(--terra); }
+  .tagline {
+    font-size: 1.1rem;
+    color: var(--ink-soft);
+    max-width: 620px;
+    margin: 0 auto;
+  }
+
+  /* Drop zone */
+  .upload-card {
+    max-width: 720px;
+    margin: 0 auto 2rem;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+  .drop {
+    border: 2px dashed var(--line);
+    border-radius: 4px;
+    padding: 3rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--cream);
+  }
+  .drop:hover, .drop.drag {
+    border-color: var(--terra);
+    background: rgba(200, 75, 49, 0.04);
+  }
+  .drop p { font-size: 1.05rem; margin-bottom: 0.5rem; }
+  .drop .hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.05em;
+  }
+  .file-status {
+    margin-top: 1rem;
+    padding: 0.8rem 1rem;
+    background: var(--cream-deep);
+    border-left: 3px solid var(--slate);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    display: none;
+  }
+  .file-status.show { display: block; }
+
+  /* Reassurance bar */
+  .promise {
+    max-width: 720px;
+    margin: 0 auto 3rem;
+    padding: 1rem 1.2rem;
+    background: var(--slate-soft);
+    border-left: 3px solid var(--slate);
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    border-radius: 2px;
+  }
+  .promise strong { color: var(--ink); }
+
+  /* Findings */
+  .results { display: none; }
+  .results.show { display: block; }
+
+  .section-title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+    margin-top: 2rem;
+  }
+  .section-title h2 {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: 1.8rem;
+    letter-spacing: -0.01em;
+  }
+  .section-title .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--terra);
+    text-transform: uppercase;
+  }
+
+  /* Findings grid */
+  .findings {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+  }
+  .finding {
+    background: white;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--terra);
+    border-radius: 2px;
+    padding: 1rem 1.2rem;
+  }
+  .finding.severity-medium { border-left-color: var(--warn); }
+  .finding.severity-low { border-left-color: var(--slate); }
+  .finding.severity-good { border-left-color: var(--good); }
+  .finding h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 0.5rem;
+  }
+  .finding .count {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.8rem;
+    line-height: 1;
+    color: var(--ink);
+    margin-bottom: 0.3rem;
+  }
+  .finding p {
+    font-size: 0.83rem;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .finding ul {
+    list-style: none;
+    margin-top: 0.5rem;
+    padding: 0;
+  }
+  .finding li {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--ink);
+    padding: 0.2rem 0;
+    word-break: break-all;
+  }
+  .finding li .label {
+    color: var(--ink-light);
+    margin-right: 0.4rem;
+  }
+  .finding li .val {
+    color: var(--terra-deep);
+  }
+
+  /* Action bar */
+  .action-bar {
+    background: var(--ink);
+    color: var(--cream);
+    padding: 2rem;
+    border-radius: 4px;
+    margin: 2rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .action-bar p {
+    flex: 1;
+    min-width: 200px;
+    font-size: 0.95rem;
+    color: var(--line);
+  }
+  .action-bar p strong { color: var(--cream); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.8rem;
+    background: var(--terra);
+    color: var(--cream);
+    border: none;
+    border-radius: 2px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--terra-deep);
+    transform: translateY(-1px);
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+  }
+  .btn.ghost:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--cream);
+  }
+  .btn.large {
+    font-size: 1.1rem;
+    padding: 1.1rem 2.2rem;
+  }
+  .btn.tiny {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.8rem;
+  }
+
+  /* Preview side-by-side */
+  .preview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  @media (max-width: 720px) { .preview-grid { grid-template-columns: 1fr; } }
+
+  .preview-panel {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1rem;
+  }
+  .preview-panel h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .preview-panel h3 .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--slate);
+  }
+  .preview-panel.cleaned h3 .dot { background: var(--good); }
+
+  .preview-canvas-wrap {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow: auto;
+    max-height: 600px;
+  }
+  .preview-canvas-wrap canvas {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* Result section */
+  .result-summary {
+    background: var(--good-soft);
+    border-left: 3px solid var(--good);
+    padding: 1.5rem 1.7rem;
+    border-radius: 2px;
+    margin-bottom: 1.5rem;
+  }
+  .result-summary h3 {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: 1.5rem;
+    color: var(--good);
+    margin-bottom: 0.5rem;
+  }
+  .result-summary p { margin-bottom: 0.5rem; }
+  .result-summary ul {
+    list-style: none;
+    margin-top: 0.8rem;
+    padding-left: 0;
+  }
+  .result-summary li {
+    padding: 0.2rem 0;
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .result-summary li::before {
+    content: '✓';
+    color: var(--good);
+    font-weight: bold;
+  }
+
+  .download-section {
+    background: var(--ink);
+    color: var(--cream);
+    padding: 2rem;
+    border-radius: 4px;
+    text-align: center;
+    margin-top: 1.5rem;
+  }
+  .download-section h3 {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: 1.6rem;
+    color: var(--cream);
+    margin-bottom: 0.5rem;
+  }
+  .download-section p {
+    color: var(--line);
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+  }
+  .download-section .btn { background: var(--terra); }
+  .download-section .btn:hover { background: var(--terra-deep); }
+
+  /* Next step */
+  .next-step {
+    margin-top: 2rem;
+    padding: 1.2rem 1.5rem;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .next-step p {
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+    flex: 1;
+    min-width: 200px;
+  }
+  .next-step strong { color: var(--ink); }
+
+  /* Warning box for visible watermarks */
+  .warn-box {
+    background: var(--warn-soft);
+    border-left: 3px solid var(--warn);
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    border-radius: 2px;
+  }
+  .warn-box strong { color: var(--ink); }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--line);
+    border-top-color: var(--terra);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .err {
+    color: var(--terra);
+    font-size: 0.9rem;
+    margin-top: 0.8rem;
+    text-align: center;
+  }
+
+  details {
+    margin-top: 1rem;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.9rem 1.3rem;
+  }
+  details summary {
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--slate);
+  }
+  details[open] summary { margin-bottom: 0.8rem; color: var(--ink); }
+  details p, details li {
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    margin-bottom: 0.4rem;
+  }
+  details ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+
+  footer {
+    margin-top: 5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--line);
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+  footer a { color: var(--terra); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem 0.5rem 3rem; }
+    .upload-card, .download-section { padding: 1.5rem; }
+    .drop { padding: 2rem 1rem; }
+    .action-bar { padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <nav class="breadcrumb">
+    <a href="../">← CV Blindé</a>
+    &nbsp;/&nbsp; demarquer-mon-cv
+  </nav>
+
+  <header>
+    <span class="eyebrow">Étape 1 · démarquage PDF</span>
+    <h1>Démarque <em>ton CV</em></h1>
+    <p class="tagline">Supprime tous les marqueurs cachés (Canva, VistaPrint, Adobe Express, Freepik, etc.) dans ton PDF, sans toucher à son apparence. Le recruteur verra exactement le même CV ; l'ATS ne verra plus les signaux louches.</p>
+  </header>
+
+  <div class="promise">
+    <strong>Notre engagement.</strong> On ne modifie <strong>rien</strong> de visible : ni le texte, ni les images, ni la mise en page. On retire uniquement ce qui se cache dans la couche technique du PDF (métadonnées, liens invisibles, actions automatiques). Tu vérifieras toi-même avec l'aperçu côte à côte avant de télécharger.
+  </div>
+
+  <!-- UPLOAD -->
+  <section class="upload-card" id="uploadCard">
+    <div class="drop" id="drop">
+      <p><strong>Glisse ton CV PDF ici</strong> ou clique pour parcourir</p>
+      <p class="hint">PDF · max 20 Mo · 100% local</p>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf" style="display:none">
+    <div class="file-status" id="fileStatus"></div>
+    <div class="err" id="uploadErr"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="results" id="results">
+
+    <div class="section-title">
+      <span class="num">Étape A</span>
+      <h2>Ce qu'on a trouvé dans ton PDF</h2>
+    </div>
+
+    <div class="findings" id="findingsGrid"></div>
+
+    <div id="warnBoxContainer"></div>
+
+    <!-- ACTION : nettoyer -->
+    <div class="action-bar" id="actionBar">
+      <p>
+        <strong>Prêt à nettoyer ?</strong><br>
+        On retire tout ce qui est non-visible. L'aperçu du résultat s'affiche juste après pour que tu vérifies que le visuel est intact.
+      </p>
+      <button class="btn large" id="cleanBtn">Nettoyer le PDF →</button>
+    </div>
+
+    <!-- AFTER : preview -->
+    <div id="afterSection" style="display:none">
+
+      <div class="section-title">
+        <span class="num">Étape B</span>
+        <h2>Avant / après — vérifie que le visuel n'a pas bougé</h2>
+      </div>
+
+      <div class="preview-grid">
+        <div class="preview-panel">
+          <h3><span class="dot"></span>PDF original (page 1)</h3>
+          <div class="preview-canvas-wrap">
+            <canvas id="canvasBefore"></canvas>
+          </div>
+        </div>
+        <div class="preview-panel cleaned">
+          <h3><span class="dot"></span>PDF nettoyé (page 1)</h3>
+          <div class="preview-canvas-wrap">
+            <canvas id="canvasAfter"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <span class="num">Étape C</span>
+        <h2>Récap de ce qui a été retiré</h2>
+      </div>
+
+      <div class="result-summary" id="resultSummary"></div>
+
+      <div class="download-section">
+        <h3>Télécharge ton CV démarqué</h3>
+        <p>Vérifié, propre, prêt à être envoyé. Il pèse à peu près le même poids que l'original.</p>
+        <a class="btn large" id="downloadBtn" download="cv_demarque.pdf">↓ Télécharger le PDF</a>
+      </div>
+
+      <div class="next-step">
+        <p><strong>Étape suivante :</strong> tu peux maintenant blinder ton CV pour les ATS, ou tester son contenu écrit.</p>
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
+          <a class="btn tiny" href="../blinder-mon-cv/">Blinder le PDF</a>
+          <a class="btn tiny ghost" href="../tester-mon-cv/">Tester le contenu</a>
+        </div>
+      </div>
+
+      <details>
+        <summary>Le watermark "Made with Canva" est toujours visible ?</summary>
+        <p>Si Canva a ajouté son nom en <strong>texte rendu visible</strong> (pas un lien invisible), on ne peut pas le retirer sans risquer d'altérer la mise en page. Voici les options :</p>
+        <ul>
+          <li><strong>Le plus simple :</strong> retourne sur Canva, repère le bloc texte "Made with Canva" en bas, supprime-le, puis ré-exporte le PDF.</li>
+          <li><strong>Si tu n'as plus accès au design Canva :</strong> ouvre le PDF dans un éditeur (PDF24, LibreOffice Draw, Inkscape…), efface le texte manuellement, sauvegarde.</li>
+          <li><strong>Astuce gratuite :</strong> Canva Pro retire le watermark automatiquement, et un essai gratuit de 30 jours suffit pour ré-exporter une fois.</li>
+        </ul>
+      </details>
+
+      <details>
+        <summary>Pourquoi le poids du PDF a changé ?</summary>
+        <p>Le PDF est entièrement reconstruit lors de l'enregistrement. Les changements de poids sont normaux : on a retiré du contenu (métadonnées, annotations, XMP), mais on a aussi peut-être recompressé certains objets. Le visuel est strictement identique — la preuve, c'est l'aperçu ci-dessus.</p>
+      </details>
+    </div>
+
+  </section>
+
+  <footer>
+    <p>Outil libre · Licence MIT · <a href="../">Retour au projet</a></p>
+    <p style="font-size:0.78rem;margin-top:0.6rem">Aucun upload serveur. Le PDF reste dans ton navigateur du début à la fin.</p>
+  </footer>
+
+</div>
+
+<script>
+// ============================================================
+// CONSTANTES — patterns de détection
+// ============================================================
+
+// Domaines réputés "branding" (annotations URI à retirer)
+const BRANDING_DOMAINS = [
+  'canva.com', 'canva.site',
+  'vistaprint.com', 'vistaprint.fr', 'vistaprint.co.uk',
+  'freepik.com', 'flaticon.com',
+  'pikbest.com', 'slidesgo.com',
+  'create.microsoft.com',
+  'docs.google.com/presentation',  // template links
+  'adobe.com/express',
+  'design.com', 'design.so',
+];
+
+// Mots-clés branding dans les métadonnées (Producer, Creator, etc.)
+const BRANDING_METADATA_PATTERNS = [
+  /canva/i,
+  /vistaprint/i,
+  /freepik/i,
+  /pikbest/i,
+  /slidesgo/i,
+  /adobe\s*express/i,
+  /microsoft\s+designer/i,
+  /poweredby/i,
+  /resume\s*genius/i,
+  /resume\s*builder/i,
+];
+
+// Patterns texte visible "Made with X" — on les détecte, on prévient,
+// mais on ne les supprime pas (risque d'altérer le visuel)
+const VISIBLE_WATERMARK_PATTERNS = [
+  /made\s+with\s+canva/i,
+  /créé\s+avec\s+canva/i,
+  /créé\s+sur\s+canva/i,
+  /designed\s+with\s+canva/i,
+  /designed\s+in\s+canva/i,
+  /réalisé\s+avec\s+canva/i,
+  /powered\s+by\s+canva/i,
+  /made\s+with\s+vistaprint/i,
+  /powered\s+by\s+vistaprint/i,
+  /made\s+on\s+adobe\s+express/i,
+  /created\s+with\s+adobe\s+express/i,
+  /designed\s+with\s+freepik/i,
+];
+
+const { PDFDocument, PDFName, PDFArray, PDFRef, PDFDict, PDFString, PDFHexString } = PDFLib;
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+// ============================================================
+// SCAN — analyse du PDF, ne modifie rien
+// ============================================================
+
+async function scanPdf(pdfBytes) {
+  // updateMetadata: false → ne pas laisser pdf-lib réécrire "Producer" en mémoire
+  const pdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true, updateMetadata: false });
+
+  const findings = {
+    metadata: [],          // liste { field, value, suspect: bool }
+    annotations: [],       // liste { page, url }
+    xmpFound: false,
+    openAction: false,
+    additionalActions: false,
+    javascript: false,
+    embeddedFiles: 0,
+    visibleWatermarks: [], // liste { text, page }
+    pageCount: pdf.getPageCount(),
+    fileSize: pdfBytes.byteLength,
+  };
+
+  // --- 1. Métadonnées du document (DocInfo) ---
+  const metaChecks = [
+    ['Producteur', safeCall(() => pdf.getProducer())],
+    ['Créateur', safeCall(() => pdf.getCreator())],
+    ['Auteur', safeCall(() => pdf.getAuthor())],
+    ['Titre', safeCall(() => pdf.getTitle())],
+    ['Sujet', safeCall(() => pdf.getSubject())],
+    ['Mots-clés', safeCall(() => {
+      const k = pdf.getKeywords();
+      return Array.isArray(k) ? k.join(', ') : k;
+    })],
+  ];
+
+  for (const [name, value] of metaChecks) {
+    if (!value) continue;
+    const suspect = BRANDING_METADATA_PATTERNS.some(p => p.test(value));
+    findings.metadata.push({ field: name, value: String(value), suspect });
+  }
+
+  // --- 2. XMP metadata stream ---
+  try {
+    const metaRef = pdf.catalog.get(PDFName.of('Metadata'));
+    if (metaRef) findings.xmpFound = true;
+  } catch(e) {}
+
+  // --- 3. OpenAction et AA (actions automatiques) ---
+  try {
+    if (pdf.catalog.get(PDFName.of('OpenAction'))) findings.openAction = true;
+    if (pdf.catalog.get(PDFName.of('AA'))) findings.additionalActions = true;
+  } catch(e) {}
+
+  // --- 4. JavaScript dans le catalogue (Names tree) ---
+  try {
+    const names = pdf.catalog.get(PDFName.of('Names'));
+    if (names) {
+      const namesDict = pdf.context.lookup(names);
+      if (namesDict && namesDict.get) {
+        if (namesDict.get(PDFName.of('JavaScript'))) findings.javascript = true;
+        const ef = namesDict.get(PDFName.of('EmbeddedFiles'));
+        if (ef) {
+          // compter approximativement les entries
+          const efDict = pdf.context.lookup(ef);
+          if (efDict && efDict.get) {
+            const namesArr = efDict.get(PDFName.of('Names'));
+            if (namesArr) {
+              const arr = pdf.context.lookup(namesArr);
+              if (arr && arr.size) findings.embeddedFiles = Math.floor(arr.size() / 2);
+            }
+          }
+        }
+      }
+    }
+  } catch(e) {}
+
+  // --- 5. Annotations URI ---
+  const pages = pdf.getPages();
+  for (let i = 0; i < pages.length; i++) {
+    try {
+      const page = pages[i];
+      const annotsObj = page.node.get(PDFName.of('Annots'));
+      if (!annotsObj) continue;
+      const annots = pdf.context.lookup(annotsObj);
+      if (!annots || !annots.asArray) continue;
+      const arr = annots.asArray();
+      for (const annotRef of arr) {
+        const annot = pdf.context.lookup(annotRef);
+        if (!annot || !annot.get) continue;
+        const subtype = annot.get(PDFName.of('Subtype'));
+        if (!subtype || !pdfNameMatches(subtype, 'Link')) continue;
+
+        const actionRef = annot.get(PDFName.of('A'));
+        if (!actionRef) continue;
+        const action = pdf.context.lookup(actionRef);
+        if (!action || !action.get) continue;
+        const uri = action.get(PDFName.of('URI'));
+        if (!uri) continue;
+
+        const url = extractStringValue(uri);
+        if (!url) continue;
+
+        const isBranded = BRANDING_DOMAINS.some(d => url.toLowerCase().includes(d));
+        if (isBranded) {
+          findings.annotations.push({ page: i + 1, url });
+        }
+      }
+    } catch(e) { console.warn('Annot scan error page', i, e); }
+  }
+
+  // --- 6. Texte visible (watermarks) — via pdf.js ---
+  try {
+    const pdfJs = await pdfjsLib.getDocument({ data: pdfBytes.slice(0) }).promise;
+    for (let i = 1; i <= pdfJs.numPages; i++) {
+      const page = await pdfJs.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map(it => it.str).join(' ');
+      for (const pattern of VISIBLE_WATERMARK_PATTERNS) {
+        const m = pageText.match(pattern);
+        if (m) {
+          findings.visibleWatermarks.push({ text: m[0], page: i });
+          break; // un par page suffit
+        }
+      }
+    }
+  } catch(e) { console.warn('Watermark scan error', e); }
+
+  return { pdf, findings };
+}
+
+// ============================================================
+// CLEAN — nettoie le PDF, retourne nouveaux bytes
+// ============================================================
+
+async function cleanPdf(pdfBytes) {
+  // updateMetadata: false → empêche pdf-lib d'injecter son "Producer" en mémoire
+  const pdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true, updateMetadata: false });
+
+  const removed = {
+    metadataFields: [],
+    annotationsCount: 0,
+    xmpRemoved: false,
+    openActionRemoved: false,
+    additionalActionsRemoved: false,
+    javascriptRemoved: false,
+    embeddedFilesRemoved: 0,
+    creationDateNeutralized: false,
+  };
+
+  // --- 1. Métadonnées DocInfo ---
+  const fieldsToWipe = [
+    ['Producer', 'setProducer'],
+    ['Creator', 'setCreator'],
+    ['Author', 'setAuthor'],
+    ['Title', 'setTitle'],
+    ['Subject', 'setSubject'],
+  ];
+  for (const [name, method] of fieldsToWipe) {
+    try {
+      const before = safeCall(() => pdf[`get${name}`]());
+      if (before) {
+        pdf[method]('');
+        removed.metadataFields.push(name);
+      }
+    } catch(e) {}
+  }
+  try {
+    const k = safeCall(() => pdf.getKeywords());
+    if (k && (Array.isArray(k) ? k.length : k.length > 0)) {
+      pdf.setKeywords([]);
+      removed.metadataFields.push('Keywords');
+    }
+  } catch(e) {}
+
+  // Neutraliser les dates (peuvent contenir des infos de fuseau / outil)
+  // → on remplace par une date neutre arrondie
+  try {
+    const created = safeCall(() => pdf.getCreationDate());
+    const modified = safeCall(() => pdf.getModificationDate());
+    if (created || modified) {
+      const neutral = new Date();
+      neutral.setHours(12, 0, 0, 0);
+      pdf.setCreationDate(neutral);
+      pdf.setModificationDate(neutral);
+      removed.creationDateNeutralized = true;
+    }
+  } catch(e) {}
+
+  // --- 2. XMP metadata stream ---
+  try {
+    const metaKey = PDFName.of('Metadata');
+    if (pdf.catalog.get(metaKey)) {
+      pdf.catalog.delete(metaKey);
+      removed.xmpRemoved = true;
+    }
+  } catch(e) {}
+
+  // --- 3. OpenAction / AA ---
+  try {
+    const oaKey = PDFName.of('OpenAction');
+    if (pdf.catalog.get(oaKey)) {
+      pdf.catalog.delete(oaKey);
+      removed.openActionRemoved = true;
+    }
+    const aaKey = PDFName.of('AA');
+    if (pdf.catalog.get(aaKey)) {
+      pdf.catalog.delete(aaKey);
+      removed.additionalActionsRemoved = true;
+    }
+  } catch(e) {}
+
+  // --- 4. JavaScript & EmbeddedFiles (via Names tree) ---
+  try {
+    const namesKey = PDFName.of('Names');
+    const namesRef = pdf.catalog.get(namesKey);
+    if (namesRef) {
+      const namesDict = pdf.context.lookup(namesRef);
+      if (namesDict && namesDict.delete) {
+        const jsKey = PDFName.of('JavaScript');
+        if (namesDict.get(jsKey)) {
+          namesDict.delete(jsKey);
+          removed.javascriptRemoved = true;
+        }
+        const efKey = PDFName.of('EmbeddedFiles');
+        const efObj = namesDict.get(efKey);
+        if (efObj) {
+          const efDict = pdf.context.lookup(efObj);
+          if (efDict && efDict.get) {
+            const arr = efDict.get(PDFName.of('Names'));
+            if (arr) {
+              const arrObj = pdf.context.lookup(arr);
+              if (arrObj && arrObj.size) {
+                removed.embeddedFilesRemoved = Math.floor(arrObj.size() / 2);
+              }
+            }
+          }
+          namesDict.delete(efKey);
+        }
+      }
+    }
+  } catch(e) {}
+
+  // --- 5. Annotations URI brandées ---
+  const pages = pdf.getPages();
+  const refsToDelete = []; // on collectera les refs à supprimer du contexte ensuite
+
+  for (let i = 0; i < pages.length; i++) {
+    try {
+      const page = pages[i];
+      const annotsObj = page.node.get(PDFName.of('Annots'));
+      if (!annotsObj) continue;
+      const annots = pdf.context.lookup(annotsObj);
+      if (!annots || !annots.asArray) continue;
+      const arr = annots.asArray();
+      const keep = [];
+
+      for (const annotRef of arr) {
+        const annot = pdf.context.lookup(annotRef);
+        if (!annot || !annot.get) { keep.push(annotRef); continue; }
+        const subtype = annot.get(PDFName.of('Subtype'));
+        let removeThis = false;
+
+        if (subtype && pdfNameMatches(subtype, 'Link')) {
+          const actionRef = annot.get(PDFName.of('A'));
+          if (actionRef) {
+            const action = pdf.context.lookup(actionRef);
+            if (action && action.get) {
+              const uri = action.get(PDFName.of('URI'));
+              if (uri) {
+                const url = extractStringValue(uri);
+                if (url) {
+                  const lower = url.toLowerCase();
+                  if (BRANDING_DOMAINS.some(d => lower.includes(d))) {
+                    removeThis = true;
+                    removed.annotationsCount++;
+                    refsToDelete.push(annotRef);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (!removeThis) keep.push(annotRef);
+      }
+
+      // Recréer le tableau d'annotations sans les brandées
+      const newArr = pdf.context.obj(keep);
+      page.node.set(PDFName.of('Annots'), newArr);
+    } catch(e) { console.warn('Clean annot error page', i, e); }
+  }
+
+  // Supprimer aussi les objets annotation orphelins du contexte PDF
+  // (sinon ils restent écrits dans le fichier final, URL incluse)
+  for (const ref of refsToDelete) {
+    try { pdf.context.delete(ref); } catch(e) {}
+  }
+
+  // --- 6. Sauvegarder ---
+  // useObjectStreams: false → garde les métadonnées en clair dans le PDF (pas dans
+  //   un object stream compressé), ce qui garantit que les champs vidés restent vides.
+  // Sans cette option, pdf-lib peut empaqueter les métadonnées dans un flux compressé
+  // qui contient encore les anciennes valeurs.
+  const bytes = await pdf.save({ useObjectStreams: false });
+  return { bytes, removed };
+}
+
+// ============================================================
+// UTILITAIRES
+// ============================================================
+
+function safeCall(fn) {
+  try { return fn(); } catch(e) { return null; }
+}
+
+function pdfNameMatches(name, value) {
+  if (!name) return false;
+  // PDFName.encodedName est "/Link", value est "Link"
+  if (name.encodedName) return name.encodedName === '/' + value;
+  return String(name).replace('/', '') === value;
+}
+
+function extractStringValue(obj) {
+  if (!obj) return null;
+  if (typeof obj === 'string') return obj;
+  if (obj.decodeText) try { return obj.decodeText(); } catch(e) {}
+  if (obj.value !== undefined) return String(obj.value);
+  // PDFHexString a asString()
+  if (obj.asString) try { return obj.asString(); } catch(e) {}
+  return null;
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' o';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' Ko';
+  return (bytes/1024/1024).toFixed(2) + ' Mo';
+}
+
+// ============================================================
+// RENDU PDF.js — preview de la page 1
+// ============================================================
+
+async function renderFirstPage(pdfBytes, canvas, maxWidth = 500) {
+  const pdf = await pdfjsLib.getDocument({ data: pdfBytes.slice(0) }).promise;
+  const page = await pdf.getPage(1);
+  const baseViewport = page.getViewport({ scale: 1 });
+  const scale = maxWidth / baseViewport.width;
+  const viewport = page.getViewport({ scale });
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+}
+
+// ============================================================
+// UI — événements et rendu
+// ============================================================
+
+const $ = id => document.getElementById(id);
+const drop = $('drop');
+const fileInput = $('fileInput');
+const fileStatus = $('fileStatus');
+const uploadErr = $('uploadErr');
+const results = $('results');
+const findingsGrid = $('findingsGrid');
+const warnBoxContainer = $('warnBoxContainer');
+const actionBar = $('actionBar');
+const cleanBtn = $('cleanBtn');
+const afterSection = $('afterSection');
+const canvasBefore = $('canvasBefore');
+const canvasAfter = $('canvasAfter');
+const resultSummary = $('resultSummary');
+const downloadBtn = $('downloadBtn');
+
+let originalBytes = null;
+let cleanedBytes = null;
+let originalFindings = null;
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+async function handleFile(file) {
+  uploadErr.textContent = '';
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    uploadErr.textContent = 'Format non supporté. Utilise un PDF.';
+    return;
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    uploadErr.textContent = 'Fichier trop volumineux (max 20 Mo).';
+    return;
+  }
+
+  fileStatus.innerHTML = '<span class="spinner"></span>Scan en cours...';
+  fileStatus.classList.add('show');
+
+  try {
+    originalBytes = await file.arrayBuffer();
+    const { findings } = await scanPdf(originalBytes);
+    originalFindings = findings;
+
+    fileStatus.innerHTML = `✓ <strong>${escapeHtml(file.name)}</strong> chargé (${formatBytes(file.size)}, ${findings.pageCount} page${findings.pageCount>1?'s':''})`;
+
+    renderFindings(findings);
+    results.classList.add('show');
+    afterSection.style.display = 'none';
+    results.scrollIntoView({behavior: 'smooth', block: 'start'});
+  } catch (err) {
+    console.error(err);
+    uploadErr.textContent = "Erreur de lecture du PDF : " + err.message;
+    fileStatus.classList.remove('show');
+  }
+}
+
+function renderFindings(f) {
+  findingsGrid.innerHTML = '';
+  warnBoxContainer.innerHTML = '';
+
+  // Carte 1: Métadonnées
+  const suspectMeta = f.metadata.filter(m => m.suspect);
+  const allMeta = f.metadata;
+  if (allMeta.length > 0) {
+    const sev = suspectMeta.length > 0 ? '' : 'severity-low';
+    const card = document.createElement('div');
+    card.className = `finding ${sev}`;
+    let html = `<h4>Métadonnées</h4>`;
+    html += `<div class="count">${allMeta.length}</div>`;
+    if (suspectMeta.length > 0) {
+      html += `<p><strong>${suspectMeta.length} champ${suspectMeta.length>1?'s':''} avec marquage détecté.</strong></p>`;
+    } else {
+      html += `<p>${allMeta.length} champ${allMeta.length>1?'s':''} de métadonnées présents. Sans marque évidente, mais on les nettoie quand même.</p>`;
+    }
+    html += '<ul>';
+    for (const m of allMeta.slice(0, 6)) {
+      const val = m.value.length > 40 ? m.value.substring(0, 40) + '…' : m.value;
+      html += `<li><span class="label">${m.field}:</span><span class="${m.suspect ? 'val' : ''}">${escapeHtml(val)}</span></li>`;
+    }
+    html += '</ul>';
+    card.innerHTML = html;
+    findingsGrid.appendChild(card);
+  } else {
+    findingsGrid.appendChild(makeFindingCard({
+      title: 'Métadonnées', count: '✓', severity: 'good',
+      desc: "Aucune métadonnée renseignée. C'est plutôt bien."
+    }));
+  }
+
+  // Carte 2: Liens cachés (annotations)
+  if (f.annotations.length > 0) {
+    const card = document.createElement('div');
+    card.className = 'finding';
+    let html = `<h4>Liens invisibles vers marques</h4>`;
+    html += `<div class="count">${f.annotations.length}</div>`;
+    html += `<p>Annotation${f.annotations.length>1?'s':''} de lien pointant vers un domaine de marque. Souvent placée en bas de page par Canva, etc.</p>`;
+    html += '<ul>';
+    for (const a of f.annotations.slice(0, 4)) {
+      const u = a.url.length > 50 ? a.url.substring(0, 50) + '…' : a.url;
+      html += `<li><span class="label">p.${a.page}:</span><span class="val">${escapeHtml(u)}</span></li>`;
+    }
+    html += '</ul>';
+    card.innerHTML = html;
+    findingsGrid.appendChild(card);
+  } else {
+    findingsGrid.appendChild(makeFindingCard({
+      title: 'Liens invisibles', count: '✓', severity: 'good',
+      desc: "Aucun lien caché vers un domaine de marque détecté."
+    }));
+  }
+
+  // Carte 3: XMP metadata
+  findingsGrid.appendChild(makeFindingCard({
+    title: 'Métadonnées XMP étendues',
+    count: f.xmpFound ? 'Oui' : '✓',
+    severity: f.xmpFound ? 'medium' : 'good',
+    desc: f.xmpFound
+      ? "Bloc XMP présent. Peut contenir des références à l'outil de création, l'historique des modifications, etc."
+      : "Pas de bloc XMP, rien à nettoyer ici."
+  }));
+
+  // Carte 4: Actions auto / JavaScript
+  const actionsCount = (f.openAction ? 1 : 0) + (f.additionalActions ? 1 : 0) + (f.javascript ? 1 : 0);
+  if (actionsCount > 0) {
+    const card = document.createElement('div');
+    card.className = 'finding';
+    let html = `<h4>Actions / JavaScript</h4>`;
+    html += `<div class="count">${actionsCount}</div>`;
+    html += `<p>Le PDF contient ${actionsCount > 1 ? 'des' : 'une'} action${actionsCount>1?'s':''} automatique${actionsCount>1?'s':''} ou du JavaScript embarqué. Pas forcément malveillant, mais inutile sur un CV.</p>`;
+    html += '<ul>';
+    if (f.openAction) html += `<li><span class="val">OpenAction</span> (s'exécute à l'ouverture)</li>`;
+    if (f.additionalActions) html += `<li><span class="val">AA</span> (actions additionnelles)</li>`;
+    if (f.javascript) html += `<li><span class="val">JavaScript</span> embarqué</li>`;
+    html += '</ul>';
+    card.innerHTML = html;
+    findingsGrid.appendChild(card);
+  } else {
+    findingsGrid.appendChild(makeFindingCard({
+      title: 'Actions / JavaScript',
+      count: '✓', severity: 'good',
+      desc: 'Aucune action automatique ni JavaScript détecté.'
+    }));
+  }
+
+  // Carte 5: Embedded files (rare)
+  if (f.embeddedFiles > 0) {
+    findingsGrid.appendChild(makeFindingCard({
+      title: 'Fichiers embarqués',
+      count: f.embeddedFiles, severity: 'medium',
+      desc: `${f.embeddedFiles} fichier${f.embeddedFiles>1?'s':''} embarqué${f.embeddedFiles>1?'s':''} dans le PDF. Souvent inutile sur un CV, on les retire.`
+    }));
+  }
+
+  // Warning : watermarks visibles
+  if (f.visibleWatermarks.length > 0) {
+    const pages = [...new Set(f.visibleWatermarks.map(w => w.page))].join(', ');
+    const sample = f.visibleWatermarks[0].text;
+    warnBoxContainer.innerHTML = `
+      <div class="warn-box">
+        <strong>Attention — watermark visible détecté.</strong>
+        Le texte « <em>${escapeHtml(sample)}</em> » apparaît en clair sur la page ${pages}. Comme c'est du contenu rendu (pas un lien caché), on ne peut pas le retirer automatiquement sans risquer de casser ta mise en page.
+        <br><br>
+        <strong>Solution :</strong> retourne sur Canva (ou ton éditeur d'origine), supprime ce texte du design, et ré-exporte le PDF. Reviens ensuite ici pour nettoyer les marqueurs invisibles.
+      </div>
+    `;
+  }
+}
+
+function makeFindingCard({ title, count, severity, desc }) {
+  const card = document.createElement('div');
+  card.className = `finding severity-${severity}`;
+  card.innerHTML = `
+    <h4>${title}</h4>
+    <div class="count">${count}</div>
+    <p>${desc}</p>
+  `;
+  return card;
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ============================================================
+// Bouton "Nettoyer"
+// ============================================================
+
+cleanBtn.addEventListener('click', async () => {
+  if (!originalBytes) return;
+  cleanBtn.disabled = true;
+  cleanBtn.innerHTML = '<span class="spinner"></span>Nettoyage...';
+
+  try {
+    const { bytes, removed } = await cleanPdf(originalBytes);
+    cleanedBytes = bytes;
+
+    // Render previews
+    afterSection.style.display = 'block';
+    await Promise.all([
+      renderFirstPage(originalBytes, canvasBefore, 500),
+      renderFirstPage(cleanedBytes, canvasAfter, 500),
+    ]);
+
+    renderResultSummary(removed, cleanedBytes.byteLength);
+
+    // Download URL
+    const blob = new Blob([cleanedBytes], { type: 'application/pdf' });
+    downloadBtn.href = URL.createObjectURL(blob);
+
+    afterSection.scrollIntoView({behavior: 'smooth', block: 'start'});
+  } catch (err) {
+    console.error(err);
+    alert("Erreur lors du nettoyage : " + err.message);
+  } finally {
+    cleanBtn.disabled = false;
+    cleanBtn.textContent = 'Nettoyer le PDF →';
+  }
+});
+
+function renderResultSummary(r, newSize) {
+  const items = [];
+  if (r.metadataFields.length > 0) {
+    items.push(`Métadonnées vidées : <code>${r.metadataFields.join(', ')}</code>`);
+  }
+  if (r.creationDateNeutralized) {
+    items.push("Dates de création / modification neutralisées");
+  }
+  if (r.annotationsCount > 0) {
+    items.push(`${r.annotationsCount} lien${r.annotationsCount>1?'s':''} invisible${r.annotationsCount>1?'s':''} vers une marque retiré${r.annotationsCount>1?'s':''}`);
+  }
+  if (r.xmpRemoved) items.push("Bloc XMP étendu supprimé");
+  if (r.openActionRemoved) items.push("Action automatique d'ouverture (OpenAction) retirée");
+  if (r.additionalActionsRemoved) items.push("Actions additionnelles (AA) retirées");
+  if (r.javascriptRemoved) items.push("JavaScript embarqué retiré");
+  if (r.embeddedFilesRemoved > 0) items.push(`${r.embeddedFilesRemoved} fichier${r.embeddedFilesRemoved>1?'s':''} embarqué${r.embeddedFilesRemoved>1?'s':''} retiré${r.embeddedFilesRemoved>1?'s':''}`);
+
+  if (items.length === 0) {
+    items.push("Le PDF était déjà propre — rien à retirer. C'est plutôt bon signe !");
+  }
+
+  const sizeDiff = originalBytes.byteLength - newSize;
+  const sizeStr = sizeDiff > 0
+    ? `${formatBytes(sizeDiff)} en moins`
+    : sizeDiff < 0
+      ? `${formatBytes(-sizeDiff)} en plus (recompression)`
+      : `taille identique`;
+
+  resultSummary.innerHTML = `
+    <h3>Ton PDF est nettoyé</h3>
+    <p>Poids original : <strong>${formatBytes(originalBytes.byteLength)}</strong> · Poids nettoyé : <strong>${formatBytes(newSize)}</strong> (${sizeStr})</p>
+    <ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>
+  `;
+}
+</script>
+
+</body>
+</html>

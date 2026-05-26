@@ -350,11 +350,14 @@
 
   .tools {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
     margin-top: 2.5rem;
   }
-  @media (max-width: 720px) {
+  @media (max-width: 920px) {
+    .tools { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 640px) {
     .tools { grid-template-columns: 1fr; }
   }
 
@@ -585,37 +588,69 @@
 
   <!-- OUTILS -->
   <section class="section">
-    <div class="section-eyebrow">Deux outils, à toi de choisir</div>
+    <div class="section-eyebrow">Quatre outils, à utiliser dans l'ordre ou séparément</div>
     <h2>Selon ce que tu as déjà <em>en main</em>.</h2>
 
     <div class="tools">
-      <!-- Carte primaire: blinder -->
+
+      <!-- Carte 00: démarquer (la nouvelle étape "avant tout") -->
       <div class="tool-card primary">
-        <div class="tool-num">01 · pour qui a déjà un CV</div>
+        <div class="tool-num">00 · à faire avant tout</div>
+        <h3>Démarquer mon CV</h3>
+        <p>Ton PDF vient de Canva, VistaPrint, Freepik ? Il contient des marqueurs cachés (métadonnées, liens invisibles) qui peuvent te coûter cher en filtrage ATS. On les retire sans toucher au visuel.</p>
+        <ul>
+          <li>Scan automatique des marques cachées dans ton PDF</li>
+          <li>Suppression Producer/Creator, liens canva.com invisibles, XMP, JavaScript</li>
+          <li>Aperçu avant/après : preuve que le visuel n'a pas bougé</li>
+          <li>Rien ne quitte ton navigateur</li>
+        </ul>
+        <a class="btn" href="demarquer-mon-cv/">
+          Démarquer mon PDF
+          <span class="arrow">→</span>
+        </a>
+      </div>
+
+      <!-- Carte 01: blinder -->
+      <div class="tool-card">
+        <div class="tool-num">01 · j'ai un CV à blinder</div>
         <h3>Blinder mon CV</h3>
         <p>Tu as un CV graphique qui te plaît. On le garde tel quel et on ajoute une page "invisible" parfaitement lisible par les machines.</p>
         <ul>
-          <li>Diagnostic visuel : tu vois exactement ce que l'ATS lit du tien</li>
+          <li>Diagnostic visuel : tu vois exactement ce que l'ATS lit</li>
           <li>Détection des sauts de lecture, des fragments perdus</li>
           <li>Génération d'un PDF blindé en deux clics</li>
-          <li>Rien ne quitte ton navigateur</li>
         </ul>
-        <a class="btn" href="blinder-mon-cv/">
+        <a class="btn ghost" href="blinder-mon-cv/">
           Lancer l'outil
           <span class="arrow">→</span>
         </a>
       </div>
 
-      <!-- Carte secondaire: créer -->
+      <!-- Carte 02: tester -->
       <div class="tool-card">
-        <div class="tool-num">02 · pour qui part de zéro</div>
+        <div class="tool-num">02 · je teste mon contenu</div>
+        <h3>Tester mon CV</h3>
+        <p>Score local sur 100. Indices progressifs (à toi de choisir quand révéler). Comparaison permanente avec ta version d'origine.</p>
+        <ul>
+          <li>Score temps réel à chaque modification</li>
+          <li>6 critères : chiffres, verbes, clichés, sections, longueur, variété</li>
+          <li>Hints en 3 niveaux : la question, la structure, l'exemple</li>
+        </ul>
+        <a class="btn ghost" href="tester-mon-cv/">
+          Lancer le test
+          <span class="arrow">→</span>
+        </a>
+      </div>
+
+      <!-- Carte 03: créer -->
+      <div class="tool-card">
+        <div class="tool-num">03 · je pars de zéro</div>
         <h3>Créer mon CV</h3>
         <p>Un script Python qui fabrique un CV structuré sémantiquement à partir d'un simple fichier texte. La version chirurgicalement propre.</p>
         <ul>
           <li>PDF balisé avec langue déclarée et métadonnées propres</li>
           <li>Structure linéaire, parsable à 100%</li>
           <li>Édition dans un éditeur de texte (YAML)</li>
-          <li>Nécessite Python sur ta machine</li>
         </ul>
         <a class="btn ghost" href="creer-mon-cv/">
           Voir le code
