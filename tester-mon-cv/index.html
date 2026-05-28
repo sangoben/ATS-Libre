@@ -387,6 +387,58 @@
     100% { opacity: 0; transform: translateY(-50px) scale(0.9); }
   }
 
+  /* Sections detected */
+  .sections-detected {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1.2rem;
+  }
+  .sections-detected h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 0.6rem;
+  }
+  .sec-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
+    margin: 0.15rem;
+    background: var(--cream-deep);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+  }
+  .sec-chip.essential {
+    background: var(--good-soft);
+    color: var(--good);
+  }
+  .sec-chip.missing {
+    background: var(--terra-soft);
+    color: var(--terra-deep);
+    text-decoration: line-through;
+  }
+  .sec-chip .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    opacity: 0.7;
+  }
+
+  /* Thinness warning */
+  .thinness-warn {
+    background: var(--warn-soft);
+    border-left: 3px solid var(--warn);
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    border-radius: 2px;
+  }
+  .thinness-warn strong { color: var(--ink); }
+
   /* Breakdown bars */
   .breakdown {
     background: white;
@@ -782,6 +834,15 @@
           </div>
         </div>
 
+        <!-- Sections détectées -->
+        <div class="sections-detected" id="sectionsDetected" style="display:none">
+          <h4>Sections détectées</h4>
+          <div id="sectionsList"></div>
+        </div>
+
+        <!-- Avertissement thinness -->
+        <div class="thinness-warn" id="thinnessWarn" style="display:none"></div>
+
         <!-- Breakdown -->
         <div class="breakdown" id="breakdown">
           <h4>Détail par catégorie</h4>
@@ -811,7 +872,8 @@
 <div class="modal-overlay" id="introModal">
   <div class="modal">
     <h3>Avant de commencer</h3>
-    <p>Cet outil te donne un score basé sur 6 critères que les recruteurs et les ATS examinent dans ton texte : présence de chiffres, force des verbes, absence de clichés, sections nommées correctement, longueur des puces, et variété du vocabulaire.</p>
+    <p>Cet outil te donne un score basé sur 6 critères que les recruteurs et les ATS examinent dans ton texte : sections standard, présence de chiffres, force des verbes, absence de clichés, longueur des puces, et variété du vocabulaire.</p>
+    <p>L'analyse est <strong>contextuelle</strong> : on évalue la section "Expérience" différemment de "Formation" ou "Compétences". Une liste de diplômes n'est pas pénalisée comme une répétition, par exemple. Tu verras les sections détectées dans le rapport.</p>
     <p>Quand tu trouves un point à corriger, tu peux demander un indice. Trois niveaux d'indices sont disponibles, du plus discret au plus concret. <strong>Tu n'es pas obligée de tous les lire</strong> — plus tu trouves seul·e, mieux c'est.</p>
     <p>Le score n'est pas ta valeur : c'est juste une mesure de la lisibilité de ton CV pour des machines et des recruteurs pressés.</p>
     <div class="modal-actions">
@@ -918,11 +980,9 @@ const STRONG_VERBS = [
   // Vente / business
   'prospecte', 'prospecté', 'prospecter',
   'fidélise', 'fidélisé', 'fidéliser',
-  'développer',
 ];
 
 const WEAK_VERBS = [
-  // Passifs / vagues
   'responsable', 'chargé', 'chargée',
   'aide', 'aidé', 'aider',
   'participe', 'participé', 'participer',
@@ -933,142 +993,257 @@ const WEAK_VERBS = [
   "j'ai", "j'étais", "j'avais",
 ];
 
-// Sections standards attendues (FR)
-const STANDARD_SECTIONS = [
-  { keywords: ['expérience', 'expériences professionnelles', 'expérience professionnelle', 'parcours professionnel'], canonical: "Expérience professionnelle", essential: true },
-  { keywords: ['formation', 'formations', 'études', 'diplômes', 'cursus'], canonical: "Formation", essential: true },
-  { keywords: ['compétences', 'savoir-faire', 'skills'], canonical: "Compétences", essential: true },
-  { keywords: ['langues', 'langues parlées'], canonical: "Langues", essential: false },
+// ============================================================
+// CLASSIFICATION DES SECTIONS — clé du V2
+// ============================================================
+
+// Mots-clés associés à chaque type de section, avec leur "kind"
+// kind détermine quels détecteurs s'appliquent et comment
+const SECTION_TYPES = [
+  {
+    kind: 'profile',
+    label: 'Profil / Résumé',
+    keywords: ['profil', 'résumé', 'à propos', 'about', 'présentation', 'objectif', 'objectifs', 'summary'],
+    essential: false,
+    weight: 1,
+  },
+  {
+    kind: 'experience',
+    label: 'Expérience professionnelle',
+    keywords: ['expérience', 'expériences professionnelles', 'expérience professionnelle', 'parcours professionnel', 'parcours', 'experiences', 'work experience'],
+    essential: true,
+    weight: 1,
+  },
+  {
+    kind: 'education',
+    label: 'Formation',
+    keywords: ['formation', 'formations', 'études', 'diplômes', 'cursus', 'éducation', 'education', 'parcours académique', 'parcours scolaire'],
+    essential: true,
+    weight: 1,
+  },
+  {
+    kind: 'skills',
+    label: 'Compétences',
+    keywords: ['compétences', 'compétences techniques', 'savoir-faire', 'skills', 'compétences clés', 'compétences professionnelles', 'expertise'],
+    essential: true,
+    weight: 1,
+  },
+  {
+    kind: 'languages',
+    label: 'Langues',
+    keywords: ['langues', 'langues parlées', 'languages', 'compétences linguistiques'],
+    essential: false,
+    weight: 1,
+  },
+  {
+    kind: 'hobbies',
+    label: 'Centres d\'intérêt',
+    keywords: ['loisirs', 'centres d\'intérêt', 'centres d\'intérêts', 'intérêts', 'passions', 'activités', 'hobbies', 'extra-professionnel'],
+    essential: false,
+    weight: 1,
+  },
+  {
+    kind: 'projects',
+    label: 'Projets',
+    keywords: ['projets', 'projets personnels', 'réalisations', 'projects', 'portfolio'],
+    essential: false,
+    weight: 1,
+  },
+  {
+    kind: 'certifications',
+    label: 'Certifications',
+    keywords: ['certifications', 'certificats', 'certifications professionnelles', 'agréments'],
+    essential: false,
+    weight: 1,
+  },
+  {
+    kind: 'volunteer',
+    label: 'Bénévolat',
+    keywords: ['bénévolat', 'engagement associatif', 'engagement', 'associatif', 'volunteering'],
+    essential: false,
+    weight: 1,
+  },
 ];
 
-// Mots qui annoncent quasi-toujours un titre de section (court, en début de ligne)
-const SECTION_HEADER_HINTS = ['expérience', 'formation', 'compétences', 'langues', 'projets', 'centres', 'loisirs', 'éducation', 'parcours'];
-
-// Patterns de quantification : nombres + unités courantes
-const QUANT_PATTERN = /\b(\d+[.,]?\d*)\s*(%|€|k€|m€|millions?|milliers?|k|ans?|mois|semaines?|jours?|heures?|h\b|personnes?|clients?|utilisateurs?|abonnés?|membres?|équipes?|projets?|sites?|articles?|posts?|fois|x|points?|millions?|kg|km|m²|tonnes?|étudiants?|élèves?|patients?|dossiers?|contrats?|leads?)\b/i;
-// Patterns de quantification sans unité (juste un nombre dans une phrase d'expérience)
-const NUMBER_PATTERN = /\b\d+([.,]\d+)?\b/;
+const SECTION_HEADER_HINTS = SECTION_TYPES.flatMap(s => s.keywords);
 
 // ============================================================
-// PARSING : découpe du texte en lignes / sections / puces
+// PARSING : découpe du texte en sections structurées
 // ============================================================
 
 function parseText(text) {
-  const lines = text.split('\n').map((l, i) => ({
-    raw: l,
-    trimmed: l.trim(),
-    lineNum: i,
-    offset: text.split('\n').slice(0, i).join('\n').length + (i > 0 ? 1 : 0),
-  }));
-
+  const lines = [];
+  let offset = 0;
+  const rawLines = text.split('\n');
+  for (let i = 0; i < rawLines.length; i++) {
+    lines.push({
+      raw: rawLines[i],
+      trimmed: rawLines[i].trim(),
+      lineNum: i,
+      offset: offset,
+    });
+    offset += rawLines[i].length + 1;
+  }
   return { lines, full: text };
 }
 
-function isLikelySectionHeader(line) {
-  const t = line.trimmed;
-  if (!t) return false;
-  if (t.length > 60) return false;
+function classifyHeader(trimmed) {
+  // Retourne le type de section si la ligne est un header reconnu, sinon null
+  if (!trimmed) return null;
+  if (trimmed.length > 60) return null;
 
-  // Tout en majuscules (typique)
-  if (/^[A-ZÉÈÊÀÂÔÎÇŒÆ\s'\-]+$/.test(t) && t.length > 3 && t.length < 40) return true;
+  const lower = trimmed.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  // Commence par un nom de section connu
-  const lower = t.toLowerCase();
-  for (const hint of SECTION_HEADER_HINTS) {
-    if (lower.startsWith(hint)) return true;
+  // Match exact OU prefix sur les keywords
+  for (const sectionType of SECTION_TYPES) {
+    for (const kw of sectionType.keywords) {
+      const kwLower = kw.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      // Exact, ou la ligne commence par le keyword (suivi d'espace, ponctuation, ou fin)
+      if (lower === kwLower) return sectionType;
+      if (lower.startsWith(kwLower) && (lower.length === kwLower.length || /^[\s:.\-—]/.test(lower.slice(kwLower.length)))) {
+        return sectionType;
+      }
+    }
   }
 
+  return null;
+}
+
+function isLikelySectionHeader(line) {
+  // Soit on reconnaît le mot-clé, soit c'est une ligne courte en majuscules
+  if (classifyHeader(line.trimmed)) return true;
+  const t = line.trimmed;
+  if (!t || t.length > 50 || t.length < 3) return false;
+  // Tout en majuscules + courte
+  if (/^[A-ZÉÈÊÀÂÔÎÇŒÆ\s'\-]+$/.test(t)) return true;
   return false;
 }
 
 function isLikelyContactInfo(line) {
   const t = line.trimmed;
-  if (/@/.test(t) && /\./.test(t)) return true;  // email
-  if (/\+?\d[\d\s.\-]{7,}/.test(t.replace(/\s/g, ''))) return true;  // phone
-  if (/linkedin|github|http|www\./i.test(t)) return true;  // URL
+  if (/@/.test(t) && /\./.test(t)) return true;
+  // Phone : on cherche au moins 8 chiffres dans la ligne (avec espaces/tirets/points)
+  // mais on s'assure qu'il n'y a pas trop de mots autour (sinon c'est une phrase qui contient un numéro)
+  const wc = t.split(/\s+/).length;
+  if (wc <= 4 && /\+?\d[\d\s.\-]{7,}/.test(t.replace(/\s/g, ''))) return true;
+  // URLs : on cherche linkedin.com, github.com, http(s)://, www.
+  // PAS juste le mot "LinkedIn" ou "GitHub" cités dans une mission
+  if (/(linkedin|github)\.com\b|\bhttps?:\/\/|\bwww\.[a-z]/i.test(t)) return true;
   return false;
 }
 
 function isLikelyJobTitle(line) {
   const t = line.trimmed;
-  // Une ligne qui contient une plage de dates ou se termine par une période = entête de poste
-  // Ex: "Chargée de communication, Association — 2022-2024"
-  //     "Master Communication, Lyon 2 — 2022"
-  //     "Sept. 2020 - Juin 2022"
-  if (/\b(19|20)\d{2}\s*[-–—]\s*((19|20)\d{2}|aujourd'hui|présent|en cours)/i.test(t)) return true;
+  // Ligne contenant une plage de dates ou se terminant par une année
+  if (/\b(19|20)\d{2}\s*[-–—]\s*((19|20)\d{2}|aujourd'hui|présent|en cours|actuel)/i.test(t)) return true;
   if (/\b(19|20)\d{2}\s*$/.test(t)) return true;
-  if (/(jan|fév|mar|avr|mai|juin|juil|août|sep|oct|nov|déc)[a-z.]*\s+\d{4}/i.test(t)) return true;
+  if (/(jan|fév|mar|avr|mai|juin|juil|août|sep|oct|nov|déc)[a-zé.]*\s+\d{4}/i.test(t)) return true;
   return false;
 }
 
-function parseBullets(parsed) {
-  // Un "bullet" = ligne qui décrit une action/mission/responsabilité.
-  // On exclut : sections, contacts, lignes très courtes, vides.
-  const bullets = [];
-  let currentSection = null;
+// Parser principal : retourne un tableau de sections, chacune avec ses lignes et son type
+function parseSections(parsed) {
+  const sections = [];
+  let current = null;
+  // Section implicite pour les premières lignes (en-tête / nom / contact)
+  let header = { kind: 'header', label: 'En-tête', lines: [], jobTitles: [] };
 
   for (const line of parsed.lines) {
-    if (!line.trimmed) continue;
-
-    if (isLikelySectionHeader(line)) {
-      currentSection = line.trimmed.toLowerCase();
+    if (!line.trimmed) {
+      if (current) current.lines.push(line);
       continue;
     }
 
-    if (isLikelyContactInfo(line)) continue;
-    if (isLikelyJobTitle(line)) continue;
+    const sectionType = classifyHeader(line.trimmed);
+    if (sectionType) {
+      // Nouvelle section reconnue
+      if (current) sections.push(current);
+      else if (header.lines.length > 0) sections.push(header);
+      current = {
+        kind: sectionType.kind,
+        label: sectionType.label,
+        essential: sectionType.essential,
+        headerLine: line,
+        lines: [],
+        jobTitles: [],
+        bullets: [],
+      };
+      continue;
+    }
 
-    // Première ligne du CV = probable nom, on skip
-    if (line.lineNum === 0 && line.trimmed.split(/\s+/).length <= 4) continue;
-
-    // On garde les lignes qui ressemblent à du contenu d'expérience
-    const wc = line.trimmed.split(/\s+/).length;
-    if (wc < 3) continue;
-
-    bullets.push({
-      text: line.trimmed,
-      lineNum: line.lineNum,
-      offset: line.offset,
-      raw: line.raw,
-      section: currentSection,
-      wordCount: wc,
-    });
-  }
-
-  return bullets;
-}
-
-function parseSections(parsed) {
-  const found = [];
-  for (const line of parsed.lines) {
+    // Header générique (tout en majuscules mais non reconnu) → on crée une section "unknown"
     if (isLikelySectionHeader(line)) {
-      found.push({
-        name: line.trimmed,
-        nameLower: line.trimmed.toLowerCase(),
-        lineNum: line.lineNum,
-        offset: line.offset,
-      });
+      if (current) sections.push(current);
+      else if (header.lines.length > 0) sections.push(header);
+      current = {
+        kind: 'unknown',
+        label: line.trimmed,
+        essential: false,
+        headerLine: line,
+        lines: [],
+        jobTitles: [],
+        bullets: [],
+      };
+      continue;
+    }
+
+    // Ligne normale
+    if (current) {
+      current.lines.push(line);
+      if (isLikelyJobTitle(line)) current.jobTitles.push(line);
+    } else {
+      header.lines.push(line);
     }
   }
-  return found;
+  if (current) sections.push(current);
+  else if (header.lines.length > 0) sections.push(header);
+
+  // Pour chaque section "experience", on extrait les bullets (lignes qui ne sont ni titres ni dates)
+  for (const sec of sections) {
+    sec.bullets = sec.lines.filter(line => {
+      if (!line.trimmed) return false;
+      if (isLikelyContactInfo(line)) return false;
+      if (isLikelyJobTitle(line)) return false;
+      const wc = line.trimmed.split(/\s+/).length;
+      if (wc < 3) return false;
+      return true;
+    }).map(line => ({
+      ...line,
+      text: line.trimmed,
+      wordCount: line.trimmed.split(/\s+/).length,
+    }));
+  }
+
+  return sections;
 }
 
 // ============================================================
-// DÉTECTEURS — chaque catégorie retourne { score, issues }
+// DÉTECTEURS CONTEXTUELS
 // ============================================================
 
-// 1. QUANTIFICATION (30 points)
-function detectQuantification(bullets) {
-  if (!bullets.length) return { score: 0, max: 30, issues: [] };
+const QUANT_PATTERN = /\b(\d+[.,]?\d*)\s*(%|€|k€|m€|millions?|milliers?|k|ans?|mois|semaines?|jours?|heures?|h\b|personnes?|clients?|utilisateurs?|abonnés?|membres?|équipes?|projets?|sites?|articles?|posts?|fois|x|points?|kg|km|m²|tonnes?|étudiants?|élèves?|patients?|dossiers?|contrats?|leads?)\b/i;
+const NUMBER_PATTERN = /\b\d+([.,]\d+)?\b/;
 
-  const quantified = bullets.filter(b => QUANT_PATTERN.test(b.text) || NUMBER_PATTERN.test(b.text));
-  const ratio = quantified.length / bullets.length;
+// 1. QUANTIFICATION — uniquement sur les sections "expérience" et "projets"
+function detectQuantification(sections) {
+  const targetSections = sections.filter(s => s.kind === 'experience' || s.kind === 'projects');
+  const allBullets = targetSections.flatMap(s => s.bullets);
+
+  if (allBullets.length === 0) {
+    // Pas d'expérience à mesurer = pas de score sur ce critère, on neutralise
+    return { score: 0, max: 0, issues: [], applicable: false };
+  }
+
+  const quantified = allBullets.filter(b => QUANT_PATTERN.test(b.text) || NUMBER_PATTERN.test(b.text));
+  const ratio = quantified.length / allBullets.length;
   const score = Math.round(ratio * 30);
 
-  const issues = bullets
+  const issues = allBullets
     .filter(b => !(QUANT_PATTERN.test(b.text) || NUMBER_PATTERN.test(b.text)))
-    .slice(0, 6)  // limiter à 6 issues max pour ne pas noyer
-    .map((b, i) => ({
+    .slice(0, 6)
+    .map(b => ({
       id: `quant-${b.lineNum}`,
       category: 'quantification',
       severity: 'high',
@@ -1076,7 +1251,7 @@ function detectQuantification(bullets) {
       excerpt: b.text,
       offset: b.offset,
       length: b.text.length,
-      pointsAtStake: Math.round(30 / Math.max(bullets.length, 1)),
+      pointsAtStake: Math.round(30 / Math.max(allBullets.length, 1)),
       why: "Le recruteur lit ton CV en 30 secondes en moyenne. Un chiffre attire l'œil et donne une échelle immédiate. <strong>'A géré une équipe'</strong> vs <strong>'A piloté une équipe de 8 personnes sur 18 mois'</strong> : la deuxième dit instantanément combien tu pèses.",
       hints: [
         "Pose-toi : <strong>combien ?</strong> Sur quelle période ? Pour quel résultat ? Quelle taille d'équipe, de budget, de portefeuille, d'audience ?",
@@ -1085,32 +1260,34 @@ function detectQuantification(bullets) {
       ]
     }));
 
-  return { score, max: 30, issues };
+  return { score, max: 30, issues, applicable: true };
 }
 
-// 2. VERBES D'ACTION (20 points)
-function detectActionVerbs(bullets) {
-  if (!bullets.length) return { score: 0, max: 20, issues: [] };
+// 2. VERBES D'ACTION — uniquement sur les bullets d'expérience
+function detectActionVerbs(sections) {
+  const targetSections = sections.filter(s => s.kind === 'experience' || s.kind === 'projects');
+  const allBullets = targetSections.flatMap(s => s.bullets);
+
+  if (allBullets.length === 0) {
+    return { score: 0, max: 0, issues: [], applicable: false };
+  }
 
   let strongCount = 0;
   const weakBullets = [];
 
-  for (const b of bullets) {
-    // On regarde le premier mot signifiant (en sautant articles, pronoms, etc.)
+  for (const b of allBullets) {
     const firstWord = (b.text.match(/[a-zA-Zéèêàâôîçœæù]+/i) || [''])[0].toLowerCase();
-
     if (STRONG_VERBS.includes(firstWord)) {
       strongCount++;
     } else if (WEAK_VERBS.includes(firstWord) || /^(responsable|chargé|chargée|en charge)/i.test(b.text.trim())) {
       weakBullets.push(b);
     }
-    // Sinon : neutre, ni bonus ni malus
   }
 
-  const ratio = strongCount / bullets.length;
+  const ratio = strongCount / allBullets.length;
   const score = Math.round(ratio * 20);
 
-  const issues = weakBullets.slice(0, 5).map((b, i) => ({
+  const issues = weakBullets.slice(0, 5).map(b => ({
     id: `verb-${b.lineNum}`,
     category: 'verbes',
     severity: 'medium',
@@ -1127,20 +1304,32 @@ function detectActionVerbs(bullets) {
     ]
   }));
 
-  return { score, max: 20, issues };
+  return { score, max: 20, issues, applicable: true };
 }
 
-// 3. BUZZWORDS / CLICHÉS (15 points) — groupés par ligne pour éviter les doublons
-function detectBuzzwords(parsed) {
+// 3. BUZZWORDS — pénalité plus forte si dans le Profil (où ils s'accumulent), modérée ailleurs
+function detectBuzzwords(sections, parsed) {
   const text = parsed.full;
   const textLower = text.toLowerCase();
-
-  // On utilise un negative lookahead Unicode pour éviter que "passionné" ne match
-  // dans "passionnée" (e après é). On tolère que la flag /u peut ne pas être supportée
-  // partout — on utilise donc \b classique + lookahead/lookbehind manuels.
   const letters = "a-zéèêëàâäôöîïçùûüœæ";
 
-  // Trouver toutes les occurrences, puis grouper par ligne
+  // Identifier les ranges de chaque section pour savoir où sont les buzzwords
+  const sectionRanges = [];
+  for (const sec of sections) {
+    if (sec.lines.length === 0) continue;
+    const start = sec.headerLine ? sec.headerLine.offset : sec.lines[0].offset;
+    const lastLine = sec.lines[sec.lines.length - 1];
+    const end = lastLine.offset + lastLine.raw.length;
+    sectionRanges.push({ kind: sec.kind, start, end });
+  }
+
+  function findSectionForOffset(offset) {
+    for (const r of sectionRanges) {
+      if (offset >= r.start && offset <= r.end) return r.kind;
+    }
+    return 'header';
+  }
+
   const occurrencesByLine = new Map();
   let totalCount = 0;
 
@@ -1150,23 +1339,21 @@ function detectBuzzwords(parsed) {
       .replace(/ /g, '\\s+')
       .replace(/[éèêë]/g, '[éèêë]')
       .replace(/[àâä]/g, '[àâä]');
-    // \b en début, et fin via lookahead pour exclure les suffixes accentués
-    const pattern = new RegExp(
-      `\\b${escaped}(?![${letters}])`,
-      'gi'
-    );
+    const pattern = new RegExp(`\\b${escaped}(?![${letters}])`, 'gi');
     let match;
     while ((match = pattern.exec(textLower)) !== null) {
       const lineStart = textLower.lastIndexOf('\n', match.index) + 1;
       let lineEnd = textLower.indexOf('\n', match.index);
       if (lineEnd === -1) lineEnd = textLower.length;
       const lineExcerpt = text.substring(lineStart, lineEnd).trim();
+      const inSection = findSectionForOffset(match.index);
 
       if (!occurrencesByLine.has(lineStart)) {
         occurrencesByLine.set(lineStart, {
           words: new Set(),
           excerpt: lineExcerpt.length > 110 ? lineExcerpt.substring(0, 110) + '…' : lineExcerpt,
           length: lineEnd - lineStart,
+          section: inSection,
         });
       }
       occurrencesByLine.get(lineStart).words.add(word);
@@ -1174,101 +1361,91 @@ function detectBuzzwords(parsed) {
     }
   }
 
-  // Score : 15 points, on retire 2.5 points par buzzword distinct par ligne
-  // (mais on plafonne pour éviter les CV avec 1 ligne pleine de clichés qui pénalisent trop)
-  const distinctCount = Array.from(occurrencesByLine.values())
-    .reduce((sum, line) => sum + line.words.size, 0);
-  const score = Math.max(0, Math.round(15 - distinctCount * 2.5));
+  // Pénalité : 4 points par buzzword distinct dans le profil/header (concentré),
+  // 2 points dans les autres sections
+  let penalty = 0;
+  for (const data of occurrencesByLine.values()) {
+    const cost = (data.section === 'profile' || data.section === 'header') ? 4 : 2;
+    penalty += data.words.size * cost;
+  }
+  const score = Math.max(0, 15 - penalty);
 
   const issues = Array.from(occurrencesByLine.entries())
     .slice(0, 6)
     .map(([lineStart, data]) => {
       const wordsList = Array.from(data.words);
-      const wordsStr = wordsList.map(w => `« ${w} »`).join(', ');
+      const inProfile = data.section === 'profile' || data.section === 'header';
       return {
         id: `buzz-${lineStart}`,
         category: 'cliches',
         severity: 'medium',
         title: wordsList.length === 1
-          ? `Cliché de CV : « ${wordsList[0]} »`
-          : `${wordsList.length} clichés dans cette ligne`,
+          ? `Cliché : « ${wordsList[0] }»` + (inProfile ? ' (dans le profil)' : '')
+          : `${wordsList.length} clichés dans cette ligne` + (inProfile ? ' (dans le profil)' : ''),
         excerpt: data.excerpt,
         offset: lineStart,
         length: data.length,
-        pointsAtStake: Math.min(8, wordsList.length * 3),
-        why: wordsList.length === 1
-          ? `Tout le monde se dit <strong>« ${wordsList[0]} »</strong>. Ces mots flous ne te distinguent de personne. Pire : ils signalent au recruteur que tu n'as pas pris le temps de prouver ces qualités par des faits concrets.`
-          : `Cette ligne contient ${wordsList.length} clichés (${wordsStr}). Plus tu accumules, plus c'est contre-productif : le recruteur survole sans rien retenir.`,
+        pointsAtStake: Math.min(8, wordsList.length * (inProfile ? 3 : 2)),
+        why: inProfile
+          ? `Le profil est l'endroit le plus lu — et le plus saturé en clichés. <strong>${wordsList.length === 1 ? `« ${wordsList[0]} »` : 'Ces mots'}</strong> ne te distingue${wordsList.length === 1 ? '' : 'nt'} de personne. Mieux vaut soit un profil concret avec des faits, soit pas de profil du tout.`
+          : `Tout le monde se dit ${wordsList.length === 1 ? `<strong>« ${wordsList[0]} »</strong>` : 'ces choses'}. Ces mots flous signalent au recruteur que tu n'as pas pris le temps de prouver ces qualités par des faits concrets.`,
         hints: [
-          `Au lieu de <strong>dire</strong> ces qualités, <strong>montre</strong>-les par des actions ou des résultats. Le lecteur déduira lui-même.`,
-          "Remplace les adjectifs par des faits : un projet livré dans des délais serrés, une équipe motivée, une initiative portée, un résultat mesurable.",
-          "Ex : <em>« Passionnée par le digital, dynamique et rigoureuse »</em> → à supprimer, et dans tes expériences ajoute : <em>« Lance 3 campagnes en parallèle au Q4 2023, +35% d'engagement »</em>."
+          inProfile
+            ? "Le profil idéal donne en 2-3 lignes : <strong>ton métier actuel + ton expérience chiffrée + ton orientation</strong>. Pas d'adjectifs sur ta personnalité."
+            : "Au lieu de <strong>dire</strong> ces qualités, <strong>montre</strong>-les par des actions ou des résultats. Le lecteur déduira lui-même.",
+          "Remplace les adjectifs par des faits : un projet livré, une équipe menée, une initiative portée, un résultat mesurable.",
+          inProfile
+            ? "Ex : <em>« Passionnée par le digital, dynamique et rigoureuse »</em> → <em>« Chargée de communication digitale avec 3 ans d'expérience dans le secteur associatif. Recherche un CDI en culture ou ESS. »</em>"
+            : "Ex : <em>« Dynamique »</em> → supprimé, et dans tes expériences : <em>« Lance 3 campagnes en parallèle au Q4 2023, objectifs atteints »</em>."
         ]
       };
     });
 
-  return { score, max: 15, issues, count: totalCount };
+  return { score, max: 15, issues, count: totalCount, applicable: true };
 }
 
-// 4. SECTIONS (15 points)
-function detectSections(parsed) {
-  const found = parseSections(parsed);
-  const foundLower = found.map(s => s.nameLower);
+// 4. SECTIONS STANDARD — vérifier la présence des sections essentielles
+function detectSections(sections) {
+  const presentKinds = new Set(sections.map(s => s.kind));
+  const essential = SECTION_TYPES.filter(t => t.essential);
+  const missingEssential = essential.filter(t => !presentKinds.has(t.kind));
 
-  const presentSections = [];
-  const missingEssential = [];
-
-  for (const std of STANDARD_SECTIONS) {
-    let isPresent = false;
-    for (const fName of foundLower) {
-      for (const kw of std.keywords) {
-        if (fName.includes(kw)) {
-          isPresent = true;
-          break;
-        }
-      }
-      if (isPresent) break;
-    }
-    if (isPresent) {
-      presentSections.push(std);
-    } else if (std.essential) {
-      missingEssential.push(std);
-    }
-  }
-
-  const essentialCount = STANDARD_SECTIONS.filter(s => s.essential).length;
-  const presentEssential = presentSections.filter(s => s.essential).length;
-  const ratio = presentEssential / essentialCount;
+  const ratio = (essential.length - missingEssential.length) / essential.length;
   const score = Math.round(ratio * 15);
 
-  const issues = missingEssential.map((s, i) => ({
-    id: `section-${s.canonical}`,
+  const issues = missingEssential.map(s => ({
+    id: `section-${s.kind}`,
     category: 'sections',
     severity: 'high',
-    title: `Section manquante ou mal nommée : « ${s.canonical} »`,
+    title: `Section manquante : « ${s.label} »`,
     excerpt: null,
     offset: 0,
     length: 0,
-    pointsAtStake: Math.round(15 / essentialCount),
-    why: `Les ATS rangent automatiquement le contenu de ton CV dans des champs. <strong>« ${s.canonical} »</strong> → champ correspondant. <strong>« Mon parcours fou »</strong> ou rien du tout → contenu perdu, pas indexé.`,
+    pointsAtStake: Math.round(15 / essential.length),
+    why: `Les ATS rangent automatiquement le contenu de ton CV dans des champs. <strong>« ${s.label} »</strong> → champ correspondant. Sans cet intitulé explicite, ton contenu est mal indexé voire perdu.`,
     hints: [
       "Vérifie que tu as bien une ligne dédiée intitulée précisément avec son nom standard.",
-      `Mots-clés acceptés pour cette section : ${s.keywords.map(k => `« ${k} »`).join(', ')}`,
-      `Si la section existe mais s'appelle autrement (ex: « Mon parcours »), renomme-la simplement en <em>« ${s.canonical} »</em>.`
+      `Mots-clés acceptés : ${s.keywords.slice(0, 4).map(k => `« ${k} »`).join(', ')}`,
+      `Si la section existe mais s'appelle autrement (ex: « Mon parcours »), renomme-la en <em>« ${s.label} »</em>.`
     ]
   }));
 
-  return { score, max: 15, issues };
+  return { score, max: 15, issues, applicable: true };
 }
 
-// 5. LONGUEUR DES PUCES (10 points)
-function detectLength(bullets) {
-  if (!bullets.length) return { score: 0, max: 10, issues: [] };
+// 5. LONGUEUR — uniquement sur les bullets d'expérience (les listes sont OK)
+function detectLength(sections) {
+  const targetSections = sections.filter(s => s.kind === 'experience' || s.kind === 'projects');
+  const allBullets = targetSections.flatMap(s => s.bullets);
 
-  const tooShort = bullets.filter(b => b.wordCount < 5);
-  const tooLong = bullets.filter(b => b.wordCount > 35);
-  const ok = bullets.length - tooShort.length - tooLong.length;
-  const ratio = ok / bullets.length;
+  if (allBullets.length === 0) {
+    return { score: 0, max: 0, issues: [], applicable: false };
+  }
+
+  const tooShort = allBullets.filter(b => b.wordCount < 5);
+  const tooLong = allBullets.filter(b => b.wordCount > 35);
+  const ok = allBullets.length - tooShort.length - tooLong.length;
+  const ratio = ok / allBullets.length;
   const score = Math.round(ratio * 10);
 
   const issues = [
@@ -1276,7 +1453,7 @@ function detectLength(bullets) {
       id: `short-${b.lineNum}`,
       category: 'longueur',
       severity: 'low',
-      title: "Ligne trop courte (manque d'info)",
+      title: "Ligne trop courte",
       excerpt: b.text,
       offset: b.offset,
       length: b.text.length,
@@ -1306,31 +1483,37 @@ function detectLength(bullets) {
     }))
   ];
 
-  return { score, max: 10, issues };
+  return { score, max: 10, issues, applicable: true };
 }
 
-// 6. RÉPÉTITION DE VERBES (10 points)
-function detectRepetition(bullets) {
-  if (!bullets.length) return { score: 0, max: 10, issues: [] };
+// 6. RÉPÉTITION — uniquement sur les bullets d'expérience. PAS sur formation/compétences/langues.
+function detectRepetition(sections) {
+  const targetSections = sections.filter(s => s.kind === 'experience' || s.kind === 'projects');
+  const allBullets = targetSections.flatMap(s => s.bullets);
+
+  if (allBullets.length === 0) {
+    return { score: 0, max: 0, issues: [], applicable: false };
+  }
 
   const firstWords = {};
-  for (const b of bullets) {
+  for (const b of allBullets) {
     const fw = (b.text.match(/[a-zA-Zéèêàâôîçœæù]+/i) || [''])[0].toLowerCase();
     if (!fw || fw.length < 3) continue;
+    // On ignore les articles/pronoms qui ne sont pas significatifs
+    if (['une', 'des', 'les', 'mes', 'mon', 'ma', 'son', 'sa'].includes(fw)) continue;
     if (!firstWords[fw]) firstWords[fw] = [];
     firstWords[fw].push(b);
   }
 
+  // Seuil : 3+ occurrences seulement pour les verbes (pas pour les articles)
   const repeated = Object.entries(firstWords).filter(([w, list]) => list.length >= 3);
-
-  // Score : 10 si aucune répétition >= 3, -3 par verbe répété
   const score = Math.max(0, 10 - repeated.length * 3);
 
   const issues = repeated.slice(0, 4).map(([word, list]) => ({
     id: `rep-${word}`,
     category: 'repetition',
     severity: 'low',
-    title: `Verbe « ${word} » répété ${list.length} fois`,
+    title: `« ${word} » répété ${list.length} fois en début de ligne`,
     excerpt: list[0].text,
     offset: list[0].offset,
     length: list[0].text.length,
@@ -1343,11 +1526,11 @@ function detectRepetition(bullets) {
     ]
   }));
 
-  return { score, max: 10, issues };
+  return { score, max: 10, issues, applicable: true };
 }
 
 // ============================================================
-// ANALYSE COMPLÈTE
+// ANALYSE COMPLÈTE — avec pondération adaptative
 // ============================================================
 
 function analyze(text) {
@@ -1357,25 +1540,46 @@ function analyze(text) {
       level: 'empty',
       issues: [],
       breakdown: [],
+      sections: [],
     };
   }
 
   const parsed = parseText(text);
-  const bullets = parseBullets(parsed);
+  const sections = parseSections(parsed);
 
-  const detectors = [
-    { id: 'quant', name: 'Quantification', ...detectQuantification(bullets) },
-    { id: 'verbs', name: "Verbes d'action", ...detectActionVerbs(bullets) },
-    { id: 'cliches', name: 'Clichés', ...detectBuzzwords(parsed) },
-    { id: 'sections', name: 'Sections standard', ...detectSections(parsed) },
-    { id: 'length', name: 'Longueur des lignes', ...detectLength(bullets) },
-    { id: 'variety', name: 'Variété des verbes', ...detectRepetition(bullets) },
+  const rawDetectors = [
+    { id: 'sections', name: 'Sections standard', ...detectSections(sections) },
+    { id: 'quant', name: 'Quantification', ...detectQuantification(sections) },
+    { id: 'verbs', name: "Verbes d'action", ...detectActionVerbs(sections) },
+    { id: 'cliches', name: 'Clichés', ...detectBuzzwords(sections, parsed) },
+    { id: 'length', name: 'Longueur des lignes', ...detectLength(sections) },
+    { id: 'variety', name: 'Variété des verbes', ...detectRepetition(sections) },
   ];
 
-  const total = detectors.reduce((sum, d) => sum + d.score, 0);
-  const allIssues = detectors.flatMap(d => d.issues);
+  // Pondération adaptative : on note sur le max applicable, mais on ramène toujours à /100
+  const applicable = rawDetectors.filter(d => d.applicable !== false);
+  const totalMax = applicable.reduce((s, d) => s + d.max, 0);
+  const totalRaw = applicable.reduce((s, d) => s + d.score, 0);
 
-  // Tri par points-at-stake décroissant pour montrer les plus gros leviers d'abord
+  // Si tout est applicable (cas normal), c'est /100 directement.
+  // Sinon, on remonte proportionnellement pour ne pas pénaliser absent d'une section
+  let total = totalMax > 0 ? Math.round((totalRaw / totalMax) * 100) : 0;
+
+  // Garde-fou anti-score-trop-optimiste : si très peu de contenu d'expérience,
+  // on plafonne. Un CV qui scorerait 100/100 sur 2 bullets est trompeur.
+  const expBullets = sections
+    .filter(s => s.kind === 'experience' || s.kind === 'projects')
+    .reduce((sum, s) => sum + s.bullets.length, 0);
+  let thinnessCap = null;
+  if (expBullets > 0 && expBullets < 3) {
+    thinnessCap = 75;
+    total = Math.min(total, 75);
+  } else if (expBullets >= 3 && expBullets < 4) {
+    thinnessCap = 90;
+    total = Math.min(total, 90);
+  }
+
+  const allIssues = applicable.flatMap(d => d.issues);
   allIssues.sort((a, b) => b.pointsAtStake - a.pointsAtStake);
 
   let level;
@@ -1389,10 +1593,15 @@ function analyze(text) {
     total,
     level,
     issues: allIssues,
-    breakdown: detectors,
-    bulletCount: bullets.length,
+    breakdown: applicable,
+    rawDetectors,
+    sections: sections.map(s => ({ kind: s.kind, label: s.label, bulletCount: s.bullets.length })),
+    bulletCount: sections.flatMap(s => s.bullets).length,
+    thinnessCap,
+    expBullets,
   };
 }
+
 
 // ============================================================
 // UI : RENDU
@@ -1495,7 +1704,54 @@ function popPoints(amount) {
   setTimeout(() => pop.remove(), 1200);
 }
 
+function renderSectionsDetected(result) {
+  const wrap = document.getElementById('sectionsDetected');
+  const list = document.getElementById('sectionsList');
+  if (!result.sections || result.sections.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  list.innerHTML = '';
+
+  // Sections présentes
+  const ESSENTIAL_KINDS = new Set(['experience', 'education', 'skills']);
+  const presentKinds = new Set();
+  for (const s of result.sections) {
+    if (s.kind === 'header' || s.kind === 'unknown') continue;
+    presentKinds.add(s.kind);
+    const chip = document.createElement('span');
+    const cls = ESSENTIAL_KINDS.has(s.kind) ? 'sec-chip essential' : 'sec-chip';
+    chip.className = cls;
+    chip.innerHTML = `${escapeHtml(s.label)}${s.bulletCount > 0 ? ` <span class="count">${s.bulletCount}</span>` : ''}`;
+    list.appendChild(chip);
+  }
+  // Sections essentielles manquantes
+  const essentialLabels = {
+    experience: 'Expérience professionnelle',
+    education: 'Formation',
+    skills: 'Compétences',
+  };
+  for (const k of ['experience', 'education', 'skills']) {
+    if (!presentKinds.has(k)) {
+      const chip = document.createElement('span');
+      chip.className = 'sec-chip missing';
+      chip.textContent = essentialLabels[k];
+      list.appendChild(chip);
+    }
+  }
+}
+
+function renderThinnessWarn(result) {
+  const el = document.getElementById('thinnessWarn');
+  if (!result.thinnessCap) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = `<strong>Score plafonné à ${result.thinnessCap}/100.</strong> Ton CV n'a que ${result.expBullets} ligne${result.expBullets > 1 ? 's' : ''} d'expérience décrite${result.expBullets > 1 ? 's' : ''}. Pour aller plus haut, détaille davantage tes missions (3 à 6 lignes par poste idéalement).`;
+}
+
 function renderBreakdown(result) {
+  renderSectionsDetected(result);
+  renderThinnessWarn(result);
   breakdownRows.innerHTML = '';
   for (const d of result.breakdown) {
     const row = document.createElement('div');
