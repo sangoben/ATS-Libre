@@ -1572,12 +1572,15 @@ function analyze(text) {
     .reduce((sum, s) => sum + s.bullets.length, 0);
   let thinnessCap = null;
   if (expBullets > 0 && expBullets < 3) {
+    // 1 ou 2 bullets seulement → score plafonné à 75
     thinnessCap = 75;
     total = Math.min(total, 75);
-  } else if (expBullets >= 3 && expBullets < 4) {
+  } else if (expBullets >= 3 && expBullets <= 4) {
+    // 3 ou 4 bullets → score plafonné à 90
     thinnessCap = 90;
     total = Math.min(total, 90);
   }
+  // 5+ bullets : pas de plafond
 
   const allIssues = applicable.flatMap(d => d.issues);
   allIssues.sort((a, b) => b.pointsAtStake - a.pointsAtStake);
