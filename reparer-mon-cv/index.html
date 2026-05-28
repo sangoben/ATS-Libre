@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Réparer mon CV — Reconstituer les mots cassés par la lecture machine</title>
+<meta name="description" content="Recolle les mots éclatés (espacement décoratif, coupures, ligatures) dans le texte extrait de ton PDF.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+
+<style>
+  :root {
+    --cream: #F4ECE1;
+    --cream-deep: #E8DCC9;
+    --ink: #1B1B1B;
+    --ink-soft: #3A3A3A;
+    --ink-light: #6A6A6A;
+    --terra: #C84B31;
+    --terra-deep: #A33D26;
+    --terra-soft: rgba(200, 75, 49, 0.12);
+    --slate: #3D5A6C;
+    --slate-soft: rgba(61, 90, 108, 0.12);
+    --line: #D4C8B5;
+    --good: #4F7942;
+    --good-soft: rgba(79, 121, 66, 0.18);
+    --warn: #B47A1E;
+    --warn-soft: rgba(180, 122, 30, 0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--cream); color: var(--ink);
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 16px; line-height: 1.6;
+    min-height: 100vh; padding: 2rem 1rem 4rem;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+    background-size: 24px 24px; opacity: 0.25;
+    pointer-events: none; z-index: 0;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; position: relative; z-index: 1; }
+
+  .breadcrumb {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    letter-spacing: 0.1em; color: var(--ink-light); margin-bottom: 2rem;
+  }
+  .breadcrumb a { color: var(--terra); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header { text-align: center; margin-bottom: 3rem; padding-top: 1rem; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--terra); margin-bottom: 1.5rem;
+    display: inline-block; padding: 0.4rem 0.9rem;
+    border: 1px solid var(--terra); border-radius: 999px;
+  }
+  h1 {
+    font-family: 'Instrument Serif', serif; font-weight: 400;
+    font-size: clamp(2.5rem, 6vw, 4rem); line-height: 1.05;
+    letter-spacing: -0.02em; margin-bottom: 1.2rem;
+  }
+  h1 em { font-style: italic; color: var(--terra); }
+  .tagline { font-size: 1.1rem; color: var(--ink-soft); max-width: 660px; margin: 0 auto; }
+
+  .upload-card {
+    max-width: 720px; margin: 0 auto 2rem; padding: 2rem;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--line); border-radius: 4px;
+  }
+  .drop {
+    border: 2px dashed var(--line); border-radius: 4px;
+    padding: 3rem 1.5rem; text-align: center; cursor: pointer;
+    transition: all 0.2s; background: var(--cream);
+  }
+  .drop:hover, .drop.drag {
+    border-color: var(--terra);
+    background: rgba(200, 75, 49, 0.04);
+  }
+  .drop p { font-size: 1.05rem; margin-bottom: 0.5rem; }
+  .drop .hint {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    color: var(--ink-soft); letter-spacing: 0.05em;
+  }
+  .file-status {
+    margin-top: 1rem; padding: 0.8rem 1rem;
+    background: var(--cream-deep); border-left: 3px solid var(--slate);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+    display: none;
+  }
+  .file-status.show { display: block; }
+
+  .or-paste {
+    text-align: center; margin: 1rem 0; color: var(--ink-light);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; letter-spacing: 0.1em;
+  }
+  .paste-area {
+    width: 100%; min-height: 150px; padding: 1rem;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: var(--cream);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+    line-height: 1.6; resize: vertical;
+  }
+  .paste-area:focus { outline: none; border-color: var(--ink); background: #fff; }
+  .paste-actions {
+    display: flex; gap: 0.8rem; margin-top: 0.8rem; flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.85rem 1.6rem; background: var(--ink); color: var(--cream);
+    border: none; border-radius: 2px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600; font-size: 0.95rem; cursor: pointer;
+    transition: all 0.15s; text-decoration: none;
+  }
+  .btn:hover:not(:disabled) { background: var(--terra); transform: translateY(-1px); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.primary { background: var(--terra); font-size: 1.05rem; padding: 1.05rem 2rem; }
+  .btn.primary:hover:not(:disabled) { background: var(--terra-deep); }
+  .btn.ghost {
+    background: transparent; color: var(--ink); border: 1px solid var(--ink);
+  }
+  .btn.ghost:hover:not(:disabled) { background: var(--ink); color: var(--cream); }
+  .btn.tiny { padding: 0.5rem 0.9rem; font-size: 0.8rem; }
+
+  /* Promise / info */
+  .promise {
+    max-width: 720px; margin: 0 auto 2rem;
+    padding: 1rem 1.2rem;
+    background: var(--slate-soft); border-left: 3px solid var(--slate);
+    font-size: 0.88rem; color: var(--ink-soft); border-radius: 2px;
+  }
+  .promise strong { color: var(--ink); }
+
+  /* Diagnostic + diff */
+  .results { display: none; }
+  .results.show { display: block; }
+
+  .section-title {
+    display: flex; align-items: baseline; gap: 0.8rem;
+    margin-bottom: 1.2rem; margin-top: 2.5rem;
+  }
+  .section-title h2 {
+    font-family: 'Instrument Serif', serif; font-weight: 400;
+    font-size: 1.7rem; letter-spacing: -0.01em;
+  }
+  .section-title .num {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 0.15em; color: var(--terra); text-transform: uppercase;
+  }
+
+  /* Stats / summary */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.8rem; margin-bottom: 1.5rem;
+  }
+  .stat {
+    background: white; border: 1px solid var(--line); border-left: 3px solid var(--slate);
+    padding: 0.9rem 1rem; border-radius: 2px;
+  }
+  .stat.fix { border-left-color: var(--good); }
+  .stat.warn { border-left-color: var(--warn); }
+  .stat .n {
+    font-family: 'Instrument Serif', serif; font-size: 1.8rem;
+    line-height: 1; color: var(--ink);
+  }
+  .stat.fix .n { color: var(--good); }
+  .stat.warn .n { color: var(--warn); }
+  .stat .l {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-soft); margin-top: 0.3rem;
+  }
+
+  /* Diff view */
+  .diff-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 800px) { .diff-grid { grid-template-columns: 1fr; } }
+
+  .diff-panel {
+    background: white; border: 1px solid var(--line); border-radius: 4px;
+    padding: 0; overflow: hidden;
+  }
+  .diff-panel-header {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--line);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-soft); display: flex; align-items: center; gap: 0.5rem;
+    background: var(--cream-deep);
+  }
+  .diff-panel-header .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--terra);
+  }
+  .diff-panel.after .diff-panel-header .dot { background: var(--good); }
+
+  .diff-content {
+    padding: 1rem 1.2rem;
+    max-height: 560px; overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;
+    line-height: 1.7; color: var(--ink-soft);
+    white-space: pre-wrap; word-break: break-word;
+  }
+
+  .diff-changed-before {
+    background: var(--terra-soft); color: var(--terra-deep);
+    border-radius: 2px; padding: 0 2px;
+    text-decoration: line-through; text-decoration-color: var(--terra);
+  }
+  .diff-changed-after {
+    background: var(--good-soft); color: var(--good);
+    border-radius: 2px; padding: 0 2px; font-weight: 500;
+  }
+
+  /* Operations list */
+  .ops-list {
+    background: white; border: 1px solid var(--line);
+    border-radius: 4px; padding: 1.2rem;
+  }
+  .ops-list h3 {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-soft); margin-bottom: 0.8rem;
+  }
+  .op-row {
+    display: grid; grid-template-columns: 1fr 24px 1fr;
+    gap: 0.8rem; align-items: center;
+    padding: 0.5rem 0; border-bottom: 1px solid var(--cream-deep);
+    font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;
+  }
+  .op-row:last-child { border-bottom: none; }
+  .op-before {
+    color: var(--terra-deep);
+    background: var(--terra-soft);
+    padding: 0.2rem 0.4rem; border-radius: 2px;
+    text-align: right; word-break: break-all;
+  }
+  .op-arrow { text-align: center; color: var(--ink-light); }
+  .op-after {
+    color: var(--good);
+    background: var(--good-soft);
+    padding: 0.2rem 0.4rem; border-radius: 2px;
+    word-break: break-all;
+  }
+  .op-kind {
+    grid-column: 1 / -1; font-size: 0.65rem;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-light); margin-top: 0.3rem;
+  }
+  .op-empty {
+    text-align: center; padding: 2rem; color: var(--ink-light);
+    font-size: 0.9rem;
+  }
+
+  /* Editor */
+  .editor-section {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 1.5rem; margin-top: 1.5rem;
+  }
+  .editor-section h3 {
+    font-family: 'Instrument Serif', serif; font-weight: 400;
+    font-size: 1.3rem; margin-bottom: 0.4rem;
+  }
+  .editor-section p {
+    font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;
+  }
+  textarea.editor {
+    width: 100%; min-height: 320px; padding: 1.2rem;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;
+    line-height: 1.7; resize: vertical;
+  }
+  textarea.editor:focus { outline: none; border-color: var(--slate); }
+
+  .editor-actions {
+    margin-top: 1rem; display: flex; gap: 0.6rem; flex-wrap: wrap;
+  }
+
+  .next-step {
+    margin-top: 2rem; padding: 1.5rem 1.7rem;
+    background: var(--ink); color: var(--cream); border-radius: 4px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1.5rem; flex-wrap: wrap;
+  }
+  .next-step p { flex: 1; min-width: 200px; color: var(--line); }
+  .next-step strong { color: var(--cream); }
+  .next-step .btns { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .next-step .btn { background: var(--terra); }
+  .next-step .btn:hover { background: var(--terra-deep); }
+  .next-step .btn.ghost {
+    background: transparent; border-color: var(--cream); color: var(--cream);
+  }
+  .next-step .btn.ghost:hover { background: var(--cream); color: var(--ink); }
+
+  details {
+    margin-top: 1rem; background: rgba(255,255,255,0.5);
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 0.9rem 1.3rem;
+  }
+  details summary {
+    cursor: pointer; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem; color: var(--slate);
+  }
+  details[open] summary { margin-bottom: 0.8rem; color: var(--ink); }
+  details p, details li {
+    font-size: 0.88rem; color: var(--ink-soft); margin-bottom: 0.4rem;
+  }
+  details ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+  details code {
+    background: var(--cream-deep); padding: 0.1rem 0.3rem;
+    border-radius: 2px; font-size: 0.85em;
+  }
+
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--line); border-top-color: var(--terra);
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+    margin-right: 0.5rem; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .err {
+    color: var(--terra); font-size: 0.9rem;
+    margin-top: 0.8rem; text-align: center;
+  }
+  .dict-status {
+    font-size: 0.78rem; color: var(--ink-light);
+    margin-left: auto;
+  }
+
+  footer {
+    margin-top: 5rem; padding-top: 2rem;
+    border-top: 1px solid var(--line); text-align: center;
+    font-size: 0.85rem; color: var(--ink-soft);
+  }
+  footer a { color: var(--terra); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem 0.5rem 3rem; }
+    .upload-card, .editor-section { padding: 1.2rem; }
+    .drop { padding: 2rem 1rem; }
+    .op-row { grid-template-columns: 1fr; gap: 0.3rem; }
+    .op-before, .op-after { text-align: left; }
+    .op-arrow { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <nav class="breadcrumb">
+    <a href="../">← CV Blindé</a>
+    &nbsp;/&nbsp; reparer-mon-cv
+  </nav>
+
+  <header>
+    <span class="eyebrow">Étape 2 · reconstitution du texte</span>
+    <h1>Répare <em>les mots cassés</em></h1>
+    <p class="tagline">Quand un ATS lit un CV avec des effets de style, il extrait du texte abîmé : "C O M M U N I C A T I O N" au lieu de "COMMUNICATION", des mots coupés en plein milieu, des ligatures bizarres. Cet outil reconstitue les mots intacts.</p>
+  </header>
+
+  <div class="promise">
+    <strong>Ce que fait cet outil.</strong> Il ne modifie pas ton PDF. Il prend ton texte (extrait du PDF ou collé), répare les mots cassés, et te donne le texte propre — à utiliser ensuite dans <em>Tester mon CV</em> ou <em>Blinder mon CV</em>.
+  </div>
+
+  <!-- UPLOAD -->
+  <section class="upload-card" id="uploadCard">
+    <div class="drop" id="drop">
+      <p><strong>Glisse ton CV PDF ici</strong> ou clique pour parcourir</p>
+      <p class="hint">PDF · max 20 Mo · 100% local</p>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf" style="display:none">
+
+    <div class="or-paste">— ou colle directement ton texte —</div>
+    <textarea class="paste-area" id="pasteArea" placeholder="Colle ici le texte abîmé extrait de ton CV (Ctrl+A puis Ctrl+C dans le PDF)..."></textarea>
+    <div class="paste-actions">
+      <button class="btn primary" id="repairBtn" disabled>Réparer le texte →</button>
+      <button class="btn ghost tiny" id="loadExampleBtn">Charger un exemple cassé</button>
+      <span class="dict-status" id="dictStatus">Dictionnaire : en cours de chargement…</span>
+    </div>
+
+    <div class="file-status" id="fileStatus"></div>
+    <div class="err" id="uploadErr"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="results" id="results">
+
+    <div class="section-title">
+      <span class="num">Étape A</span>
+      <h2>Récap des réparations</h2>
+    </div>
+
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <div class="section-title">
+      <span class="num">Étape B</span>
+      <h2>Avant / après — voir les changements en contexte</h2>
+    </div>
+
+    <div class="diff-grid">
+      <div class="diff-panel">
+        <div class="diff-panel-header"><span class="dot"></span>Texte d'origine (abîmé)</div>
+        <div class="diff-content" id="diffBefore"></div>
+      </div>
+      <div class="diff-panel after">
+        <div class="diff-panel-header"><span class="dot"></span>Texte réparé</div>
+        <div class="diff-content" id="diffAfter"></div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <span class="num">Étape C</span>
+      <h2>Liste détaillée des corrections</h2>
+    </div>
+
+    <div class="ops-list" id="opsList">
+      <h3>Opérations effectuées</h3>
+      <div id="opsRows"></div>
+    </div>
+
+    <div class="editor-section">
+      <h3>Texte final modifiable</h3>
+      <p>Tu peux ajuster manuellement si l'outil a corrigé un mot qui ne devait pas l'être, ou ajouter des corrections qu'il n'a pas vues.</p>
+      <textarea class="editor" id="finalEditor"></textarea>
+      <div class="editor-actions">
+        <button class="btn" id="downloadTxtBtn">↓ Télécharger en .txt</button>
+        <button class="btn ghost" id="copyBtn">Copier dans le presse-papier</button>
+        <span id="copyConfirm" style="color:var(--good);font-size:0.85rem;align-self:center;display:none">✓ copié</span>
+      </div>
+    </div>
+
+    <div class="next-step">
+      <p><strong>Étape suivante :</strong> utilise ce texte propre dans les autres outils pour un meilleur diagnostic.</p>
+      <div class="btns">
+        <a class="btn" href="../tester-mon-cv/">Tester le contenu</a>
+        <a class="btn ghost" href="../blinder-mon-cv/">Blinder un PDF</a>
+      </div>
+    </div>
+
+    <details>
+      <summary>Comment ça marche ? Les heuristiques utilisées</summary>
+      <p>L'outil applique plusieurs corrections dans l'ordre :</p>
+      <ul>
+        <li><strong>Normalisation Unicode</strong> : les ligatures (<code>ﬁ</code> → <code>fi</code>), apostrophes courbes (<code>'</code> → <code>'</code>), tirets longs, espaces insécables sont remplacés par leurs équivalents standards.</li>
+        <li><strong>Espacement décoratif</strong> : détection des séquences "L E T T R E S" (lettres séparées par espaces) et recollage en mot. La détection utilise un dictionnaire pour vérifier que le résultat est un mot valide.</li>
+        <li><strong>Hyphénation</strong> : les mots coupés par retour à la ligne (<code>communica-\ncation</code>) sont rejoints si le résultat existe dans le dictionnaire.</li>
+        <li><strong>Espaces parasites</strong> : doubles espaces, espaces avant ponctuation française corrigée (l'espace avant <code>;</code> <code>:</code> <code>?</code> <code>!</code> reste, c'est la norme typographique française).</li>
+        <li><strong>Caractères mal décodés</strong> : remplacement des séquences typiques d'encodage cassé (<code>Ã©</code> → <code>é</code>, etc.) quand détectées.</li>
+      </ul>
+      <p>Toutes les modifications sont listées en clair pour que tu puisses vérifier — l'outil ne fait rien dans ton dos.</p>
+    </details>
+
+  </section>
+
+  <footer>
+    <p>Outil libre · Licence MIT · <a href="../">Retour au projet</a></p>
+    <p style="font-size:0.78rem;margin-top:0.6rem">Aucun upload serveur. Le texte reste dans ton navigateur du début à la fin.</p>
+  </footer>
+
+</div>
+
+<script>
+// ============================================================
+// DICTIONNAIRE FRANÇAIS — chargement avec fallback
+// ============================================================
+
+// Mini-dictionnaire embarqué : ~500 mots fréquents pour cas où le CDN échoue
+// Couvre l'essentiel du vocabulaire de CV
+const EMBEDDED_DICT_FR = `
+le la les un une des de du au aux et ou mais donc car ni or que qui quoi dont où
+ce cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs
+je tu il elle nous vous ils elles on me te se y en lui
+est sont etre avoir fait faire fais peut peuvent doit doivent va vais vont
+allez aller venir suis sommes etes ont avez avons avais
+plus moins tres assez aussi tout tous toute toutes autre autres
+oui non pas ne ni avant apres pendant depuis pour avec sans dans sur sous
+chez vers entre contre par jusqu jusque selon
+expérience expériences professionnelle professionnelles parcours formation formations
+diplôme diplômes étude études cursus master licence baccalauréat bts dut iut bac
+compétence compétences savoir connaissance connaissances langue langues maternelle
+projet projets mission missions tâche tâches responsabilité responsabilités
+réalisation réalisations résultat résultats objectif objectifs
+entreprise entreprises société sociétés association associations institution
+poste postes emploi emplois travail travaux activité activités fonction fonctions
+chargé chargée chargés chargées responsable responsables assistant assistante
+manager directeur directrice consultant consultante développeur développeuse
+ingénieur ingénieure technicien technicienne commercial commerciale
+gestion administration coordination supervision encadrement pilotage management
+animation organisation planification conception création développement déploiement
+analyse étude évaluation audit recherche
+communication marketing digital digitale social sociaux numérique numériques
+réseau réseaux site sites web internet ligne newsletter campagne campagnes
+stratégie stratégique stratégies budget budgets équipe équipes collaborateur collaborateurs
+client clientèle clients fournisseur fournisseurs partenaire partenaires
+satisfaction qualité performance performances productivité rentabilité
+processus procédure procédures méthode méthodes outil outils logiciel logiciels
+adobe photoshop illustrator indesign premiere office excel word powerpoint
+canva wordpress salesforce sap python javascript html css sql
+français anglais espagnol allemand italien chinois arabe portugais russe japonais
+courant bilingue notion notions bases intermédiaire avancé scolaire
+janvier février mars avril mai juin juillet août septembre octobre novembre décembre
+lundi mardi mercredi jeudi vendredi samedi dimanche
+nom prénom adresse téléphone email mail courriel age date naissance
+ville pays département région paris lyon marseille toulouse bordeaux nantes lille
+rue avenue boulevard place chemin route
+permis voiture vehicule mobile mobilité disponible disponibilité immédiate
+contrat cdi cdd interim stage alternance apprentissage temps plein partiel
+formation école universite faculté institut centre cursus diplôme thèse mémoire
+ans année années mois semaine semaines jour jours heure heures
+euros millions milliers pourcentage évolution croissance augmentation diminution
+loisirs centres intérêts hobby sport sports voyage voyages lecture musique
+bénévolat bénévole association engagement humanitaire
+profil personnel personnelle dynamique motivé motivée passionné passionnée
+rigoureux rigoureuse créatif créative autonome polyvalent polyvalente sérieux sérieuse
+adaptation adaptabilité relationnel équipe collaboration esprit initiative
+résultat résultats performant performante efficace efficacité organisation
+formation formé formée expert expertise spécialisé spécialisée
+développer optimiser piloter coordonner gérer concevoir lancer animer
+encadrer superviser réaliser conduire mener déployer construire fonder
+créer initier élaborer améliorer augmenter réduire transformer moderniser
+négocier présenter accompagner recruter fédérer analyser identifier étudier
+évaluer auditer planifier prospecter fidéliser
+matin midi soir
+si selon
+était été
+`.trim().split(/\s+/);
+
+let DICT_FR = new Set(EMBEDDED_DICT_FR.map(w => normalize(w)));
+let DICT_FR_FULL = false;
+
+function normalize(s) {
+  // pour comparaison dictionnaire: lowercase + suppression accents
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// Tentative de chargement d'un dico FR plus complet en parallèle (non bloquant)
+async function loadFullDict() {
+  const candidates = [
+    'https://cdn.jsdelivr.net/gh/words/an-array-of-french-words@master/index.json',
+  ];
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length < 5000) continue;
+      for (const w of data) {
+        if (w && typeof w === 'string' && w.length > 0) {
+          DICT_FR.add(normalize(w));
+        }
+      }
+      DICT_FR_FULL = true;
+      document.getElementById('dictStatus').textContent =
+        `Dictionnaire : ${DICT_FR.size.toLocaleString('fr-FR')} mots`;
+      return true;
+    } catch(e) { /* try next */ }
+  }
+  document.getElementById('dictStatus').textContent =
+    `Dictionnaire : mini (${DICT_FR.size} mots) — heuristiques étendues`;
+  return false;
+}
+
+function isWordValid(w) {
+  if (!w || w.length < 2) return false;
+  return DICT_FR.has(normalize(w));
+}
+
+// ============================================================
+// EXTRACTION PDF (via pdf.js)
+// ============================================================
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+async function extractTextFromPdf(bytes) {
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    let lastY = null;
+    let line = [];
+    for (const item of content.items) {
+      const y = item.transform[5];
+      if (lastY !== null && Math.abs(y - lastY) > 2) {
+        text += line.join(' ') + '\n';
+        line = [];
+      }
+      if (item.str) line.push(item.str);
+      lastY = y;
+    }
+    if (line.length) text += line.join(' ');
+    text += '\n\n';
+  }
+  return text;
+}
+
+// ============================================================
+// REPARATION — les détecteurs/correcteurs
+// ============================================================
+
+const OPS = []; // accumule les opérations effectuées
+
+function pushOp(kind, before, after) {
+  OPS.push({ kind, before, after });
+}
+
+// 1. Normalisation Unicode (ligatures, apostrophes, etc.)
+function fixUnicode(text) {
+  const replacements = [
+    // Ligatures latines
+    ['ﬁ', 'fi'], ['ﬂ', 'fl'], ['ﬀ', 'ff'], ['ﬃ', 'ffi'], ['ﬄ', 'ffl'],
+    ['ﬅ', 'st'], ['ﬆ', 'st'],
+    // Apostrophes/guillemets
+    ['\u2019', "'"], ['\u2018', "'"], ['\u201C', '"'], ['\u201D', '"'],
+    ['\u00AB ', '« '], [' \u00BB', ' »'], // garder les chevrons français
+    // Espaces spéciaux
+    ['\u00A0', ' '], // nbsp → espace
+    ['\u2009', ' '], // thin space
+    ['\u202F', ' '], // narrow nbsp
+    ['\u200B', ''], // zero-width
+    ['\u200C', ''],
+    ['\u200D', ''],
+    ['\u00AD', ''], // soft hyphen (invisible mais perturbe certains parsers)
+    ['\uFEFF', ''], // BOM
+    // Tirets
+    ['\u2013', '-'], // en-dash
+    ['\u2014', '—'], // em-dash (garder)
+    ['\u2212', '-'], // minus sign
+    // Encodage cassé latin-1/utf-8 typique
+    ['Ã©', 'é'], ['Ã¨', 'è'], ['Ãª', 'ê'], ['Ã«', 'ë'],
+    ['Ã ', 'à'], ['Ã¢', 'â'], ['Ã¤', 'ä'],
+    ['Ã®', 'î'], ['Ã¯', 'ï'],
+    ['Ã´', 'ô'], ['Ã¶', 'ö'],
+    ['Ã¹', 'ù'], ['Ã»', 'û'], ['Ã¼', 'ü'],
+    ['Ã§', 'ç'],
+    ['Ã‰', 'É'], ['Ãˆ', 'È'], ['ÃŠ', 'Ê'],
+    ['Ã€', 'À'], ['Ã‚', 'Â'],
+    ['ÃŽ', 'Î'], ['Ã"', 'Ô'], ['Ã™', 'Ù'], ['Ã›', 'Û'],
+    ['Ã‡', 'Ç'],
+  ];
+
+  let result = text;
+  for (const [from, to] of replacements) {
+    let count = 0;
+    while (result.indexOf(from) !== -1) {
+      result = result.replace(from, to);
+      count++;
+      if (count > 10000) break; // safety
+    }
+    if (count > 0) {
+      const label = from.charCodeAt(0) < 32 || from.charCodeAt(0) > 127
+        ? `U+${from.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`
+        : from;
+      pushOp('unicode', label, to === '' ? '(supprimé)' : to);
+    }
+  }
+  return result;
+}
+
+// 2. Espacement décoratif : "C O M M U N I C A T I O N" → "COMMUNICATION"
+//    On cherche des séquences de lettres simples séparées par un seul espace.
+//    On accepte aussi les chiffres et les caractères accentués.
+function fixSpacedOutLetters(text) {
+  // Pattern : au moins 4 lettres séparées par un seul espace
+  //   ex: "C O M M U N I C A T I O N" → match
+  //   ex: "À LA RECHERCHE" → ne doit PAS match (mots séparés normalement)
+  // L'astuce : chaque "token" doit faire 1 seul caractère
+  // On utilise lookbehind/lookahead pour borner sur des espaces ou début/fin
+  const pattern = /(?:^|(?<=[\s\n]))((?:[A-Za-zÀ-ÖØ-öø-ÿ0-9] ){3,}[A-Za-zÀ-ÖØ-öø-ÿ0-9])(?=[\s\n]|[.,;:!?]|$)/g;
+
+  return text.replace(pattern, (match, captured) => {
+    const recombined = captured.replace(/ /g, '');
+    // Vérifier que ça donne quelque chose de raisonnable
+    // (au moins 4 caractères, et idéalement un mot du dico ou une chaîne ALLCAPS)
+    if (recombined.length < 4) return match;
+
+    // Cas 1 : c'est un mot du dico → on recolle
+    if (isWordValid(recombined)) {
+      pushOp('espacement', captured, recombined);
+      return recombined;
+    }
+    // Cas 2 : c'est tout en majuscules (typique des titres)
+    if (recombined === recombined.toUpperCase() && /^[A-ZÀ-Ö0-9]+$/.test(recombined)) {
+      pushOp('espacement', captured, recombined);
+      return recombined;
+    }
+    // Cas 3 : tout en majuscules avec accents
+    if (/^[A-ZÀ-ÖØ-Þ0-9]+$/.test(recombined)) {
+      pushOp('espacement', captured, recombined);
+      return recombined;
+    }
+    // Sinon on laisse : c'est peut-être une suite d'initiales légitimes
+    return match;
+  });
+}
+
+// 3. Mots coupés par retour à la ligne (hyphénation)
+//    "communica-\ncation" → "communication"  (si dans le dico)
+function fixHyphenation(text) {
+  // Pattern : lettres + "-" + retour ligne + lettres
+  return text.replace(/(\p{L}+)-\n(\p{L}+)/gu, (match, p1, p2) => {
+    const joined = p1 + p2;
+    const withHyphen = p1 + '-' + p2;
+    // Si le mot joint est valide ET le mot avec tiret n'est pas un mot composé valide → on joint
+    if (isWordValid(joined) && !isWordValid(withHyphen)) {
+      pushOp('coupure', p1 + '-↵' + p2, joined);
+      return joined;
+    }
+    // Si le mot joint n'est pas dans le dico mais le mot avec tiret non plus, on tente quand même
+    // mais on garde le retour ligne sous forme d'espace
+    if (!isWordValid(withHyphen) && joined.length >= 5) {
+      // Heuristique : si p1 et p2 sont tous deux > 2 chars, c'est probablement une coupure
+      if (p1.length >= 2 && p2.length >= 2) {
+        pushOp('coupure', p1 + '-↵' + p2, joined);
+        return joined;
+      }
+    }
+    // Sinon on garde la forme avec tiret (mot composé légitime)
+    return withHyphen;
+  });
+}
+
+// 4. Recoller les mots fragmentés à l'intérieur d'une ligne sans tiret
+//    Ex: "communi cation" → "communication" si le tout existe et que les parties seules sont invalides
+//    Attention à ne pas être trop agressif : on n'agit que quand les deux fragments ne sont PAS des mots valides
+//    et que leur concaténation EST un mot valide.
+function fixIntraLineFragments(text) {
+  // On traite ligne par ligne pour ne pas franchir les paragraphes
+  const lines = text.split('\n');
+  const fixed = lines.map(line => {
+    // Split en tokens (mots et séparateurs)
+    const tokens = line.split(/(\s+)/);
+    const out = [];
+    let i = 0;
+    while (i < tokens.length) {
+      const tok = tokens[i];
+      // Tester recollage tok + tokens[i+2] (en sautant l'espace tokens[i+1])
+      if (
+        i + 2 < tokens.length &&
+        /^\p{L}+$/u.test(tok) &&
+        /^\s+$/.test(tokens[i+1]) &&
+        /^\p{L}+$/u.test(tokens[i+2])
+      ) {
+        const next = tokens[i+2];
+        const joined = tok + next;
+        // Conditions strictes :
+        // - Le résultat doit être valide
+        // - Au moins UN des deux fragments doit être invalide seul
+        //   (sinon on casserait "le chat" en "lechat")
+        // - Et le résultat doit avoir au moins 5 caractères
+        if (
+          joined.length >= 5 &&
+          isWordValid(joined) &&
+          (!isWordValid(tok) || !isWordValid(next))
+        ) {
+          pushOp('fragment', tok + ' ' + next, joined);
+          out.push(joined);
+          i += 3;
+          continue;
+        }
+      }
+      out.push(tok);
+      i++;
+    }
+    return out.join('');
+  });
+  return fixed.join('\n');
+}
+
+// 5. Espaces parasites (doubles espaces, etc.)
+function fixWhitespace(text) {
+  let before = text;
+  let result = text;
+  // Doubles espaces (mais pas les indentations en début de ligne)
+  result = result.replace(/([^\n ]) {2,}/g, '$1 ');
+  // Espace avant ponctuation simple (.,) — pas pour ; : ? ! (norme FR)
+  result = result.replace(/ +([.,])/g, '$1');
+  // Triples retours ligne → double
+  result = result.replace(/\n{4,}/g, '\n\n\n');
+
+  if (before !== result) {
+    // On compte les modifications grossièrement
+    const diff = (before.match(/  +/g) || []).length + (before.match(/ [.,]/g) || []).length;
+    if (diff > 0) {
+      pushOp('espaces', `${diff} occurrences`, 'normalisées');
+    }
+  }
+  return result;
+}
+
+// ============================================================
+// PIPELINE DE RÉPARATION
+// ============================================================
+
+function repair(rawText) {
+  OPS.length = 0;
+  const original = rawText;
+
+  let t = rawText;
+  t = fixUnicode(t);
+  t = fixSpacedOutLetters(t);
+  t = fixHyphenation(t);
+  t = fixIntraLineFragments(t);
+  t = fixWhitespace(t);
+
+  return {
+    before: original,
+    after: t,
+    ops: [...OPS],
+  };
+}
+
+// ============================================================
+// DIFF VISUEL — compare le texte avant et après et surligne
+// ============================================================
+
+// Tokenisation pour diff (mots + séparateurs)
+function tokenize(text) {
+  return text.split(/(\s+)/);
+}
+
+// Diff word-level simple (LCS, mais on simplifie en alignement par index)
+// Suffisant pour un texte CV (pas de gros déplacements)
+function diffTokens(before, after) {
+  const tA = tokenize(before);
+  const tB = tokenize(after);
+  // Use a basic Myers diff
+  const n = tA.length, m = tB.length;
+  // Pour rester rapide : LCS DP O(n*m). Si trop long, fallback.
+  if (n * m > 1e7) {
+    return null; // trop gros, on retournera texte brut
+  }
+  const dp = Array.from({length: n+1}, () => new Int32Array(m+1));
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      dp[i][j] = tA[i-1] === tB[j-1]
+        ? dp[i-1][j-1] + 1
+        : Math.max(dp[i-1][j], dp[i][j-1]);
+    }
+  }
+  // Backtrack
+  const opsB = []; // sequence dans before annotée
+  const opsA = []; // sequence dans after annotée
+  let i = n, j = m;
+  while (i > 0 && j > 0) {
+    if (tA[i-1] === tB[j-1]) {
+      opsB.push({ text: tA[i-1], type: 'same' });
+      opsA.push({ text: tB[j-1], type: 'same' });
+      i--; j--;
+    } else if (dp[i-1][j] >= dp[i][j-1]) {
+      opsB.push({ text: tA[i-1], type: 'removed' });
+      i--;
+    } else {
+      opsA.push({ text: tB[j-1], type: 'added' });
+      j--;
+    }
+  }
+  while (i > 0) { opsB.push({ text: tA[i-1], type: 'removed' }); i--; }
+  while (j > 0) { opsA.push({ text: tB[j-1], type: 'added' }); j--; }
+  opsB.reverse();
+  opsA.reverse();
+  return { opsB, opsA };
+}
+
+function renderDiff(beforeText, afterText) {
+  const diffBeforeEl = document.getElementById('diffBefore');
+  const diffAfterEl = document.getElementById('diffAfter');
+
+  // Texte trop long → fallback simple
+  if (beforeText.length > 50000) {
+    diffBeforeEl.textContent = beforeText.slice(0, 50000) + '\n…(tronqué)';
+    diffAfterEl.textContent = afterText.slice(0, 50000) + '\n…(tronqué)';
+    return;
+  }
+
+  const diff = diffTokens(beforeText, afterText);
+  if (!diff) {
+    diffBeforeEl.textContent = beforeText;
+    diffAfterEl.textContent = afterText;
+    return;
+  }
+
+  diffBeforeEl.innerHTML = '';
+  for (const op of diff.opsB) {
+    const span = document.createElement('span');
+    if (op.type === 'removed') span.className = 'diff-changed-before';
+    span.textContent = op.text;
+    diffBeforeEl.appendChild(span);
+  }
+
+  diffAfterEl.innerHTML = '';
+  for (const op of diff.opsA) {
+    const span = document.createElement('span');
+    if (op.type === 'added') span.className = 'diff-changed-after';
+    span.textContent = op.text;
+    diffAfterEl.appendChild(span);
+  }
+}
+
+// ============================================================
+// UI : événements + rendu
+// ============================================================
+
+const $ = id => document.getElementById(id);
+
+const drop = $('drop');
+const fileInput = $('fileInput');
+const fileStatus = $('fileStatus');
+const pasteArea = $('pasteArea');
+const repairBtn = $('repairBtn');
+const loadExampleBtn = $('loadExampleBtn');
+const uploadErr = $('uploadErr');
+const results = $('results');
+const statsGrid = $('statsGrid');
+const opsRows = $('opsRows');
+const finalEditor = $('finalEditor');
+const downloadTxtBtn = $('downloadTxtBtn');
+const copyBtn = $('copyBtn');
+const copyConfirm = $('copyConfirm');
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+pasteArea.addEventListener('input', () => {
+  repairBtn.disabled = pasteArea.value.trim().length < 20;
+});
+
+async function handleFile(file) {
+  uploadErr.textContent = '';
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    uploadErr.textContent = 'Format non supporté. Utilise un PDF ou colle le texte directement.';
+    return;
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    uploadErr.textContent = 'Fichier trop volumineux (max 20 Mo).';
+    return;
+  }
+
+  fileStatus.innerHTML = '<span class="spinner"></span>Extraction du texte...';
+  fileStatus.classList.add('show');
+
+  try {
+    const bytes = await file.arrayBuffer();
+    const text = await extractTextFromPdf(bytes);
+    pasteArea.value = text;
+    repairBtn.disabled = text.trim().length < 20;
+    fileStatus.innerHTML =
+      `✓ <strong>${escapeHtml(file.name)}</strong> · ${text.length} caractères extraits — clique sur "Réparer le texte"`;
+  } catch (err) {
+    console.error(err);
+    uploadErr.textContent = "Erreur de lecture du PDF : " + err.message;
+    fileStatus.classList.remove('show');
+  }
+}
+
+repairBtn.addEventListener('click', () => {
+  const raw = pasteArea.value;
+  if (raw.trim().length < 20) return;
+
+  const { before, after, ops } = repair(raw);
+
+  renderStats(ops, before, after);
+  renderDiff(before, after);
+  renderOpsList(ops);
+
+  finalEditor.value = after;
+
+  results.classList.add('show');
+  results.scrollIntoView({behavior: 'smooth', block: 'start'});
+});
+
+function renderStats(ops, before, after) {
+  const byKind = {};
+  for (const op of ops) {
+    byKind[op.kind] = (byKind[op.kind] || 0) + 1;
+  }
+
+  const stats = [
+    { n: ops.length, l: 'Corrections totales', cls: ops.length > 0 ? 'fix' : '' },
+    { n: byKind.unicode || 0, l: 'Caractères normalisés', cls: '' },
+    { n: byKind.espacement || 0, l: 'Mots respacés', cls: '' },
+    { n: byKind.coupure || 0, l: 'Coupures recollées', cls: '' },
+    { n: byKind.fragment || 0, l: 'Fragments réunis', cls: '' },
+    { n: before.length - after.length, l: 'Caractères en moins', cls: '' },
+  ];
+
+  statsGrid.innerHTML = stats.map(s =>
+    `<div class="stat ${s.cls}"><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`
+  ).join('');
+}
+
+function renderOpsList(ops) {
+  opsRows.innerHTML = '';
+  if (ops.length === 0) {
+    opsRows.innerHTML = '<div class="op-empty">Aucune correction nécessaire — ton texte était déjà propre.</div>';
+    return;
+  }
+
+  const kindLabels = {
+    unicode: 'Caractère Unicode normalisé',
+    espacement: 'Espacement décoratif corrigé',
+    coupure: 'Mot coupé recollé',
+    fragment: 'Fragment réuni',
+    espaces: 'Espaces blancs nettoyés',
+  };
+
+  // Group by kind to keep the list readable
+  const grouped = {};
+  for (const op of ops) {
+    if (!grouped[op.kind]) grouped[op.kind] = [];
+    grouped[op.kind].push(op);
+  }
+
+  const order = ['espacement', 'coupure', 'fragment', 'unicode', 'espaces'];
+  for (const kind of order) {
+    if (!grouped[kind]) continue;
+    const label = document.createElement('div');
+    label.className = 'op-kind';
+    label.textContent = `— ${kindLabels[kind]} (${grouped[kind].length}) —`;
+    opsRows.appendChild(label);
+
+    // Cap à 12 lignes par catégorie pour ne pas noyer
+    const list = grouped[kind].slice(0, 12);
+    for (const op of list) {
+      const row = document.createElement('div');
+      row.className = 'op-row';
+      row.innerHTML = `
+        <span class="op-before">${escapeHtml(truncate(op.before, 50))}</span>
+        <span class="op-arrow">→</span>
+        <span class="op-after">${escapeHtml(truncate(op.after, 50))}</span>
+      `;
+      opsRows.appendChild(row);
+    }
+    if (grouped[kind].length > 12) {
+      const more = document.createElement('div');
+      more.className = 'op-kind';
+      more.style.color = 'var(--ink-light)';
+      more.textContent = `... et ${grouped[kind].length - 12} autres dans cette catégorie`;
+      opsRows.appendChild(more);
+    }
+  }
+}
+
+function truncate(s, n) {
+  if (!s) return '';
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Téléchargement TXT
+downloadTxtBtn.addEventListener('click', () => {
+  const blob = new Blob([finalEditor.value], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cv_repare.txt';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+// Copier
+copyBtn.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(finalEditor.value);
+    copyConfirm.style.display = 'inline';
+    setTimeout(() => copyConfirm.style.display = 'none', 2000);
+  } catch(e) {
+    finalEditor.select();
+    document.execCommand('copy');
+    copyConfirm.style.display = 'inline';
+    setTimeout(() => copyConfirm.style.display = 'none', 2000);
+  }
+});
+
+// Exemple
+const BROKEN_EXAMPLE = `M A R I E   L E F È V R E
+chargée de communication
+
+C O M M U N I C A T I O N
+
+Expérience profession-
+nelle
+
+Pilote la stratégie de communica-
+tion digitale sur Instagram et LinkedIn.
+Animation d'une communauté de 12 000 abonnés .
+Coordina tion de 4 campagnes Meta Ads par an.
+
+P A S S I O N N É E par le digital, dynamique et rigoureuse.
+
+Forma tion
+Master Communication numé\u00ADrique, Lyon 2 — 2022
+
+Compé tences
+SuiteAdobe, Canva, WordPress`;
+
+loadExampleBtn.addEventListener('click', () => {
+  pasteArea.value = BROKEN_EXAMPLE;
+  repairBtn.disabled = false;
+});
+
+// Démarrer chargement dictionnaire
+loadFullDict();
+</script>
+
+</body>
+</html>
