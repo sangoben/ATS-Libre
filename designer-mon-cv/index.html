@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designer mon CV — Plusieurs templates ATS-compliant</title>
+<meta name="description" content="Génère plusieurs designs propres de CV à partir de tes données, tous lisibles par les ATS.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+
+<style>
+  :root {
+    --cream: #F4ECE1;
+    --cream-deep: #E8DCC9;
+    --ink: #1B1B1B;
+    --ink-soft: #3A3A3A;
+    --ink-light: #6A6A6A;
+    --terra: #C84B31;
+    --terra-deep: #A33D26;
+    --terra-soft: rgba(200, 75, 49, 0.12);
+    --slate: #3D5A6C;
+    --slate-soft: rgba(61, 90, 108, 0.12);
+    --line: #D4C8B5;
+    --good: #4F7942;
+    --good-soft: rgba(79, 121, 66, 0.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--cream); color: var(--ink);
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 16px; line-height: 1.6;
+    min-height: 100vh; padding: 2rem 1rem 4rem;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+    background-size: 24px 24px; opacity: 0.25;
+    pointer-events: none; z-index: 0;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; position: relative; z-index: 1; }
+
+  .breadcrumb {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    letter-spacing: 0.1em; color: var(--ink-light); margin-bottom: 2rem;
+  }
+  .breadcrumb a { color: var(--terra); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header { text-align: center; margin-bottom: 3rem; padding-top: 1rem; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--terra); margin-bottom: 1.5rem;
+    display: inline-block; padding: 0.4rem 0.9rem;
+    border: 1px solid var(--terra); border-radius: 999px;
+  }
+  h1 {
+    font-family: 'Instrument Serif', serif; font-weight: 400;
+    font-size: clamp(2.5rem, 6vw, 4rem); line-height: 1.05;
+    letter-spacing: -0.02em; margin-bottom: 1.2rem;
+  }
+  h1 em { font-style: italic; color: var(--terra); }
+  .tagline { font-size: 1.1rem; color: var(--ink-soft); max-width: 660px; margin: 0 auto; }
+
+  /* Setup: paste data */
+  .setup-card {
+    max-width: 880px; margin: 0 auto 2rem; padding: 2rem;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--line); border-radius: 4px;
+  }
+  .setup-card h2 {
+    font-family: 'Instrument Serif', serif; font-weight: 400;
+    font-size: 1.6rem; margin-bottom: 0.4rem;
+  }
+  .setup-card p {
+    color: var(--ink-soft); font-size: 0.95rem; margin-bottom: 1.2rem;
+  }
+
+  .setup-tabs {
+    display: flex; gap: 0.5rem; margin-bottom: 1rem;
+  }
+  .setup-tab {
+    background: var(--cream); border: 1px solid var(--line);
+    padding: 0.5rem 1rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+    letter-spacing: 0.05em; cursor: pointer;
+    border-radius: 2px; color: var(--ink-soft);
+    transition: all 0.15s;
+  }
+  .setup-tab.active {
+    background: var(--ink); color: var(--cream); border-color: var(--ink);
+  }
+  .setup-tab:hover:not(.active) {
+    background: var(--cream-deep); color: var(--ink);
+  }
+
+  textarea {
+    width: 100%; min-height: 280px; padding: 1rem;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: var(--cream);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+    line-height: 1.65; color: var(--ink); resize: vertical;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { outline: none; border-color: var(--ink); background: #fff; }
+
+  .input-field {
+    width: 100%; padding: 0.7rem 1rem;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: var(--cream);
+    font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.95rem;
+    transition: border-color 0.2s;
+  }
+  .input-field:focus { outline: none; border-color: var(--ink); background: #fff; }
+
+  .form-tab {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem 1.5rem;
+  }
+  .form-tab.active { display: grid; }
+  .form-field { display: flex; flex-direction: column; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-soft); margin-bottom: 0.4rem;
+  }
+  .form-field textarea { min-height: 90px; }
+
+  .setup-actions {
+    margin-top: 1.2rem; display: flex; gap: 0.8rem; flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.85rem 1.6rem; background: var(--ink); color: var(--cream);
+    border: none; border-radius: 2px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600; font-size: 0.95rem; cursor: pointer;
+    transition: all 0.15s; text-decoration: none;
+  }
+  .btn:hover:not(:disabled) { background: var(--terra); transform: translateY(-1px); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.primary {
+    background: var(--terra); font-size: 1.05rem; padding: 1.05rem 2rem;
+  }
+  .btn.primary:hover:not(:disabled) { background: var(--terra-deep); }
+  .btn.ghost {
+    background: transparent; color: var(--ink); border: 1px solid var(--ink);
+  }
+  .btn.ghost:hover:not(:disabled) { background: var(--ink); color: var(--cream); }
+  .btn.tiny { padding: 0.5rem 0.9rem; font-size: 0.8rem; }
+  .btn.large { font-size: 1.1rem; padding: 1.1rem 2.2rem; }
+
+  /* Designs gallery */
+  .designs { display: none; }
+  .designs.show { display: block; }
+
+  .designs-header {
+    background: var(--ink); color: var(--cream);
+    padding: 1.5rem 2rem; border-radius: 4px;
+    margin-bottom: 1.5rem;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .designs-header h2 {
+    font-family: 'Instrument Serif', serif; font-weight: 400;
+    color: var(--cream); font-size: 1.6rem;
+  }
+  .designs-header p {
+    color: var(--line); font-size: 0.9rem; margin-top: 0.3rem;
+  }
+  .designs-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+  .designs-actions .btn { background: var(--terra); }
+  .designs-actions .btn:hover { background: var(--terra-deep); }
+  .designs-actions .btn.ghost {
+    background: transparent; border-color: var(--cream); color: var(--cream);
+  }
+  .designs-actions .btn.ghost:hover { background: var(--cream); color: var(--ink); }
+
+  .designs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 1.5rem;
+  }
+  @media (max-width: 800px) {
+    .designs-grid { grid-template-columns: 1fr; }
+  }
+
+  .design-card {
+    background: white; border: 1px solid var(--line);
+    border-radius: 4px; overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: all 0.2s;
+  }
+  .design-card:hover {
+    border-color: var(--ink);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .design-card-header {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--cream-deep);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 0.8rem;
+  }
+  .design-card-header h3 {
+    font-family: 'Instrument Serif', serif; font-weight: 400;
+    font-size: 1.2rem; margin: 0;
+  }
+  .design-card-header .tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-light);
+  }
+
+  .design-preview-wrap {
+    background: var(--cream); padding: 1rem;
+    display: flex; justify-content: center;
+    max-height: 540px; overflow-y: auto;
+  }
+  .design-preview-wrap svg {
+    max-width: 100%; height: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    background: white;
+  }
+
+  .design-card-footer {
+    padding: 1rem 1.2rem;
+    border-top: 1px solid var(--line);
+    display: flex; gap: 0.6rem; justify-content: space-between;
+    align-items: center;
+  }
+  .design-card-footer .traits {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    color: var(--ink-light);
+  }
+
+  /* Promise */
+  .promise {
+    max-width: 880px; margin: 0 auto 2rem;
+    padding: 1rem 1.2rem;
+    background: var(--slate-soft); border-left: 3px solid var(--slate);
+    font-size: 0.88rem; color: var(--ink-soft); border-radius: 2px;
+  }
+  .promise strong { color: var(--ink); }
+  .promise ul {
+    margin-top: 0.5rem; padding-left: 1.5rem;
+    list-style-type: none;
+  }
+  .promise ul li {
+    padding: 0.15rem 0;
+    position: relative;
+  }
+  .promise ul li::before {
+    content: '✓ '; color: var(--good); font-weight: bold;
+    position: absolute; left: -1.2rem;
+  }
+
+  /* Error / status */
+  .err {
+    color: var(--terra); font-size: 0.9rem;
+    margin-top: 0.8rem; text-align: center;
+  }
+  .ok-msg {
+    color: var(--good); font-size: 0.9rem;
+    margin-top: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid var(--line); border-top-color: var(--terra);
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+    margin-right: 0.5rem; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Detected fields summary */
+  .detected {
+    background: white; border: 1px solid var(--line); border-radius: 4px;
+    padding: 1rem 1.2rem; margin-bottom: 1.5rem; font-size: 0.9rem;
+  }
+  .detected h4 {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-soft); margin-bottom: 0.6rem;
+  }
+  .det-row {
+    display: grid; grid-template-columns: 140px 1fr;
+    gap: 0.8rem; padding: 0.3rem 0;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--cream-deep);
+  }
+  .det-row:last-child { border-bottom: none; }
+  .det-row .k {
+    color: var(--ink-light);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+  }
+  .det-row .v { color: var(--ink); word-break: break-word; }
+  .det-row .v.empty { color: var(--ink-light); font-style: italic; }
+
+  /* Next step */
+  .next-step {
+    margin-top: 2rem; padding: 1.5rem 1.7rem;
+    background: var(--ink); color: var(--cream); border-radius: 4px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1.5rem; flex-wrap: wrap;
+  }
+  .next-step p { flex: 1; min-width: 200px; color: var(--line); }
+  .next-step strong { color: var(--cream); }
+  .next-step .btn { background: var(--terra); }
+  .next-step .btn:hover { background: var(--terra-deep); }
+  .next-step .btn.ghost {
+    background: transparent; border-color: var(--cream); color: var(--cream);
+  }
+  .next-step .btn.ghost:hover { background: var(--cream); color: var(--ink); }
+
+  footer {
+    margin-top: 4rem; padding-top: 2rem;
+    border-top: 1px solid var(--line); text-align: center;
+    font-size: 0.85rem; color: var(--ink-soft);
+  }
+  footer a { color: var(--terra); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  details {
+    margin-top: 1rem; background: rgba(255,255,255,0.5);
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 0.9rem 1.3rem;
+  }
+  details summary {
+    cursor: pointer; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem; color: var(--slate);
+  }
+  details[open] summary { margin-bottom: 0.8rem; color: var(--ink); }
+  details p, details li {
+    font-size: 0.88rem; color: var(--ink-soft); margin-bottom: 0.4rem;
+  }
+  details ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem 0.5rem 3rem; }
+    .setup-card { padding: 1.2rem; }
+    .design-preview-wrap { padding: 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <nav class="breadcrumb">
+    <a href="../">← CV Blindé</a>
+    &nbsp;/&nbsp; designer-mon-cv
+  </nav>
+
+  <header>
+    <span class="eyebrow">Étape 4 · plusieurs designs au choix</span>
+    <h1>Trois <em>designs propres</em>, à toi de choisir</h1>
+    <p class="tagline">Si éditer ton CV existant t'épuise, change d'angle : pars de tes données brutes et choisis parmi des designs sobres, tous strictement ATS-compliant. Pas de colonnes, pas d'icônes, pas de jauges.</p>
+  </header>
+
+  <div class="promise">
+    <strong>Tous les designs respectent les mêmes règles :</strong>
+    <ul>
+      <li>Une seule colonne, lecture linéaire</li>
+      <li>Polices standards (pas de fantaisie)</li>
+      <li>Sections nommées explicitement (Profil, Expérience, Formation…)</li>
+      <li>Dates au format constant, structure cohérente</li>
+      <li>Métadonnées propres, PDF balisé sémantiquement</li>
+    </ul>
+    Si tu n'aimes aucun, clique sur "Regénérer" — d'autres variantes apparaissent.
+  </div>
+
+  <!-- SETUP -->
+  <section class="setup-card" id="setupSection">
+    <h2>Étape 1 — Donne-moi tes données</h2>
+    <p>Deux façons : coller ton CV complet (l'outil va extraire les sections automatiquement) ou remplir un formulaire structuré.</p>
+
+    <div class="setup-tabs">
+      <button class="setup-tab active" data-mode="paste">Coller un CV</button>
+      <button class="setup-tab" data-mode="form">Formulaire structuré</button>
+    </div>
+
+    <!-- PASTE MODE -->
+    <div class="form-tab active" id="pasteTab" style="display:block">
+      <div class="form-field full">
+        <label for="cvPaste">Texte intégral du CV (idéalement passé par "Réparer mon CV")</label>
+        <textarea id="cvPaste" placeholder="Colle ton CV ici — nom, contact, profil, expériences, formation, compétences, langues..."></textarea>
+      </div>
+    </div>
+
+    <!-- FORM MODE -->
+    <div class="form-tab" id="formTab" style="display:none">
+      <div class="form-field">
+        <label>Nom complet</label>
+        <input class="input-field" id="fNom" placeholder="ex: Marie Lefèvre">
+      </div>
+      <div class="form-field">
+        <label>Métier / Titre</label>
+        <input class="input-field" id="fMetier" placeholder="ex: Chargée de communication digitale">
+      </div>
+      <div class="form-field">
+        <label>Email</label>
+        <input class="input-field" id="fEmail" placeholder="email@example.com">
+      </div>
+      <div class="form-field">
+        <label>Téléphone</label>
+        <input class="input-field" id="fTel" placeholder="+33 6 12 34 56 78">
+      </div>
+      <div class="form-field">
+        <label>Ville</label>
+        <input class="input-field" id="fVille" placeholder="Lyon, France">
+      </div>
+      <div class="form-field">
+        <label>LinkedIn (optionnel)</label>
+        <input class="input-field" id="fLinkedin" placeholder="linkedin.com/in/...">
+      </div>
+      <div class="form-field full">
+        <label>Profil (2-3 lignes)</label>
+        <textarea id="fProfil" placeholder="Ex: Chargée de communication digitale avec 3 ans d'expérience..."></textarea>
+      </div>
+      <div class="form-field full">
+        <label>Expérience professionnelle (une expérience par bloc, séparés par une ligne vide)</label>
+        <textarea id="fExp" placeholder="Chargée de communication, Association Lumières — 09/2022 - 06/2024
+Pilote la stratégie de communication digitale.
+Anime une communauté de 12 000 abonnés.
+
+Assistante communication, Maison de la Culture — 09/2020 - 08/2022
+Gestion des réseaux sociaux."></textarea>
+      </div>
+      <div class="form-field full">
+        <label>Formation (une par ligne)</label>
+        <textarea id="fForm" placeholder="Master Communication, Université Lyon 2 — 2022
+Licence Info-Com, Université Grenoble Alpes — 2020"></textarea>
+      </div>
+      <div class="form-field full">
+        <label>Compétences (séparées par virgules)</label>
+        <textarea id="fComp" style="min-height:60px" placeholder="Suite Adobe, Canva, WordPress, Meta Ads, Mailchimp"></textarea>
+      </div>
+      <div class="form-field full">
+        <label>Langues (une par ligne, format : Langue — Niveau)</label>
+        <textarea id="fLang" style="min-height:60px" placeholder="Français — natif
+Anglais — C1
+Espagnol — B1"></textarea>
+      </div>
+    </div>
+
+    <div class="setup-actions">
+      <button class="btn primary" id="generateBtn">Générer les designs →</button>
+      <button class="btn ghost tiny" id="loadExampleBtn">Charger un exemple</button>
+      <span class="err" id="errMsg"></span>
+    </div>
+  </section>
+
+  <!-- DESIGNS -->
+  <section class="designs" id="designsSection">
+
+    <div class="designs-header">
+      <div>
+        <h2>Trois designs générés à partir de tes données</h2>
+        <p>Tu peux télécharger chacun en PDF, ou demander d'autres variantes.</p>
+      </div>
+      <div class="designs-actions">
+        <button class="btn ghost" id="regenBtn">↻ Regénérer</button>
+        <button class="btn ghost" id="backBtn">← Modifier les données</button>
+      </div>
+    </div>
+
+    <!-- Detected summary -->
+    <div class="detected" id="detected"></div>
+
+    <!-- Designs grid -->
+    <div class="designs-grid" id="designsGrid"></div>
+
+    <div class="next-step">
+      <p><strong>Une fois choisi, étape suivante :</strong> télécharge le PDF du design qui te plaît, puis fais-le passer par <em>Tester mon CV</em> pour valider le score, ou par <em>Démarquer mon CV</em> par précaution.</p>
+      <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
+        <a class="btn" href="../tester-mon-cv/">Tester le contenu</a>
+        <a class="btn ghost" href="../demarquer-mon-cv/">Démarquer</a>
+      </div>
+    </div>
+
+    <details>
+      <summary>Pourquoi ces designs spécifiquement ?</summary>
+      <p><strong>Tous mono-colonne</strong> : c'est la règle d'or pour les ATS. Les colonnes décalées sont la première cause de CV mal parsés.</p>
+      <p><strong>Pas d'icônes</strong> : un téléphone ou une enveloppe à la place du mot "Téléphone" ou "Email" disparaît à l'extraction de texte.</p>
+      <p><strong>Pas de jauges de compétences</strong> : "Adobe ████░░ 80%" devient "Adobe" sans le niveau. Mieux vaut écrire "Adobe (avancé)" ou ne rien préciser.</p>
+      <p><strong>Polices safe</strong> : Helvetica/Inter pour les designs modernes, Source Serif pour le serif. Ce sont des polices que tous les parsers reconnaissent.</p>
+      <p><strong>Métadonnées propres</strong> : Title, Author, Lang remplis correctement. Producer/Creator neutralisés.</p>
+    </details>
+
+  </section>
+
+  <footer>
+    <p>Outil libre · Licence MIT · <a href="../">Retour au projet</a></p>
+    <p style="font-size:0.78rem;margin-top:0.6rem">Aucun upload serveur. Tes données restent dans ton navigateur du début à la fin.</p>
+  </footer>
+
+</div>
+
+<script>
+// ============================================================
+// PARSER : extraire la structure d'un CV depuis du texte brut
+// ============================================================
+
+const SECTION_KEYWORDS = {
+  profile: ['profil', 'résumé', 'à propos', 'about', 'présentation', 'objectif', 'summary'],
+  experience: ['expérience', 'expériences professionnelles', 'expérience professionnelle', 'parcours professionnel', 'parcours', 'experiences'],
+  education: ['formation', 'formations', 'études', 'diplômes', 'cursus', 'éducation', 'parcours académique'],
+  skills: ['compétences', 'compétences techniques', 'savoir-faire', 'skills', 'expertise'],
+  languages: ['langues', 'langues parlées', 'languages'],
+  hobbies: ['loisirs', "centres d'intérêt", "centres d'intérêts", 'intérêts', 'passions', 'hobbies'],
+};
+
+function normLower(s) {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function detectSection(line) {
+  const t = line.trim();
+  if (!t || t.length > 60) return null;
+  const lower = normLower(t);
+  for (const [kind, kws] of Object.entries(SECTION_KEYWORDS)) {
+    for (const kw of kws) {
+      const kwLower = normLower(kw);
+      if (lower === kwLower) return kind;
+      if (lower.startsWith(kwLower) && (lower.length === kwLower.length || /^[\s:.\-—]/.test(lower.slice(kwLower.length)))) return kind;
+    }
+  }
+  return null;
+}
+
+function isDateLine(t) {
+  if (/\b(19|20)\d{2}\s*[-–—]\s*((19|20)\d{2}|aujourd'hui|présent|en cours|actuel)/i.test(t)) return true;
+  if (/\b(19|20)\d{2}\s*$/.test(t)) return true;
+  if (/\d{1,2}\/\d{4}\s*[-–—]\s*(\d{1,2}\/\d{4}|aujourd'hui|présent|en cours)/i.test(t)) return true;
+  return false;
+}
+
+function extractEmail(text) {
+  const m = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+  return m ? m[0] : null;
+}
+function extractPhone(text) {
+  // Téléphones FR ou intl
+  const candidates = text.match(/(\+\d{1,3}[\s.-]?)?(\(?\d{1,4}\)?[\s.-]?)?(\d{2,4}[\s.-]?){3,5}\d{0,4}/g) || [];
+  for (const c of candidates) {
+    const digits = c.replace(/\D/g, '');
+    if (digits.length >= 9 && digits.length <= 15) return c.trim();
+  }
+  return null;
+}
+function extractLinkedin(text) {
+  const m = text.match(/(?:linkedin\.com\/in\/|linkedin\.com\/pub\/)[\w-]+/i);
+  return m ? m[0] : null;
+}
+
+function parseCV(rawText) {
+  const lines = rawText.split('\n').map(l => l.trimEnd());
+  const data = {
+    nom: '',
+    metier: '',
+    email: '',
+    telephone: '',
+    ville: '',
+    linkedin: '',
+    profil: '',
+    experiences: [],   // [{ poste, entreprise, periode, lieu, missions: [] }]
+    formations: [],    // [{ diplome, etablissement, periode, lieu }]
+    competences: [],   // [string]
+    langues: [],       // [{ nom, niveau }]
+    hobbies: [],
+  };
+
+  // 1. Identifier les sections et leurs ranges
+  const sectionBoundaries = []; // [{ kind, startLine, endLine }]
+  let currentKind = 'header';
+  let currentStart = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const kind = detectSection(lines[i]);
+    if (kind) {
+      sectionBoundaries.push({ kind: currentKind, startLine: currentStart, endLine: i });
+      currentKind = kind;
+      currentStart = i + 1; // skip the section header line itself
+    }
+  }
+  sectionBoundaries.push({ kind: currentKind, startLine: currentStart, endLine: lines.length });
+
+  // 2. Header → nom, métier, email, tel, etc.
+  const headerSec = sectionBoundaries.find(s => s.kind === 'header');
+  if (headerSec) {
+    const headerLines = lines.slice(headerSec.startLine, headerSec.endLine).filter(l => l.trim());
+    // 1ère ligne non vide = nom
+    if (headerLines.length > 0) data.nom = headerLines[0].trim();
+    // 2e ligne souvent = métier
+    if (headerLines.length > 1) {
+      const candidate = headerLines[1].trim();
+      // Si la 2e ligne contient un email/tel, on saute
+      if (!extractEmail(candidate) && !extractPhone(candidate) && candidate.length < 80) {
+        data.metier = candidate;
+      }
+    }
+    // Concat le reste pour chercher contacts
+    const headerText = headerLines.join(' ');
+    data.email = extractEmail(headerText) || '';
+    data.telephone = extractPhone(headerText) || '';
+    data.linkedin = extractLinkedin(headerText) || '';
+    // Ville : heuristique = chercher des patterns "Ville, Pays" ou simplement "Ville"
+    // dans la ligne de contact. On supprime email/tel/linkedin, puis on cherche
+    // un fragment qui ressemble à une ville.
+    for (const l of headerLines) {
+      let clean = l;
+      const e = extractEmail(l); if (e) clean = clean.replace(e, '');
+      const p = extractPhone(l); if (p) clean = clean.replace(p, '');
+      const li = extractLinkedin(l); if (li) clean = clean.replace(li, '');
+      // Split sur séparateurs habituels (— · | etc.) — PAS les virgules
+      const parts = clean.split(/\s*[—–·|]\s*/).map(p => p.trim()).filter(p => p);
+      for (const part of parts) {
+        if (!part || part.length > 50) continue;
+        // Skip si c'est le nom ou le métier
+        if (part === data.nom || part === data.metier) continue;
+        // Pattern ville : majuscule initiale, lettres et virgules autorisées
+        if (/^[A-ZÉÈÊÀ][a-zéèêàâôîçœæ\-]+(?:[,\s]+[A-ZÉÈÊÀa-zéèêàâ]+)*$/.test(part)) {
+          if (!data.ville) {
+            data.ville = part;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Profil : tout le texte de la section, joint
+  const profileSec = sectionBoundaries.find(s => s.kind === 'profile');
+  if (profileSec) {
+    const profileLines = lines.slice(profileSec.startLine, profileSec.endLine)
+      .map(l => l.trim()).filter(l => l);
+    data.profil = profileLines.join(' ');
+  }
+
+  // 4. Expériences : on découpe en sous-blocs séparés par des lignes vides
+  // ou par des "lignes type entête de poste" (souvent celles qui contiennent des dates)
+  const expSecs = sectionBoundaries.filter(s => s.kind === 'experience');
+  for (const sec of expSecs) {
+    const secLines = lines.slice(sec.startLine, sec.endLine);
+    const blocks = splitIntoExperienceBlocks(secLines);
+    for (const block of blocks) {
+      const exp = parseExperienceBlock(block);
+      if (exp) data.experiences.push(exp);
+    }
+  }
+
+  // 5. Formations — une ligne = une formation par défaut (sauf si bloc multi-lignes
+  // avec des informations sur des lignes séparées). On traite chaque ligne non vide
+  // comme une formation distincte si elle contient un mot-clé diplôme ou une date.
+  const formSecs = sectionBoundaries.filter(s => s.kind === 'education');
+  for (const sec of formSecs) {
+    const secLines = lines.slice(sec.startLine, sec.endLine)
+      .map(l => l.trim()).filter(l => l);
+    for (const line of secLines) {
+      const f = parseFormationBlock([line]);
+      if (f && (f.diplome || f.etablissement)) data.formations.push(f);
+    }
+  }
+
+  // 6. Compétences : on lit toutes les lignes, on splitte sur virgules/puces
+  const skillsSecs = sectionBoundaries.filter(s => s.kind === 'skills');
+  for (const sec of skillsSecs) {
+    const secLines = lines.slice(sec.startLine, sec.endLine);
+    for (const l of secLines) {
+      if (!l.trim()) continue;
+      // Si la ligne commence par "Titre :", on ignore le titre
+      const colonIdx = l.indexOf(':');
+      const content = colonIdx >= 0 ? l.slice(colonIdx + 1) : l;
+      const parts = content.split(/[,;]|\s+•\s+|\s+·\s+|\s+-\s+/).map(p => p.trim()).filter(p => p.length > 1);
+      for (const p of parts) {
+        if (!data.competences.includes(p)) data.competences.push(p);
+      }
+    }
+  }
+
+  // 7. Langues
+  const langSecs = sectionBoundaries.filter(s => s.kind === 'languages');
+  for (const sec of langSecs) {
+    const secLines = lines.slice(sec.startLine, sec.endLine);
+    for (const l of secLines) {
+      if (!l.trim()) continue;
+      // Format "Anglais — C1" ou "Anglais (C1)" ou "Anglais: C1"
+      const m = l.match(/([^:—\-(,;]+)\s*(?:[—\-:(]\s*([^)]+)\)?|\(([^)]+)\)|[,;]\s*([^,;]+))?/);
+      if (m) {
+        const nom = m[1].trim();
+        const niveau = (m[2] || m[3] || m[4] || '').trim();
+        if (nom && nom.length < 30) {
+          data.langues.push({ nom, niveau });
+        }
+      }
+    }
+  }
+
+  // 8. Loisirs
+  const hobbiesSecs = sectionBoundaries.filter(s => s.kind === 'hobbies');
+  for (const sec of hobbiesSecs) {
+    const secLines = lines.slice(sec.startLine, sec.endLine);
+    for (const l of secLines) {
+      if (!l.trim()) continue;
+      const parts = l.split(/[,;]|\s+•\s+|\s+·\s+/).map(p => p.trim()).filter(p => p);
+      for (const p of parts) {
+        if (!data.hobbies.includes(p)) data.hobbies.push(p);
+      }
+    }
+  }
+
+  return data;
+}
+
+function splitIntoExperienceBlocks(secLines) {
+  // Un bloc se termine quand on trouve une nouvelle ligne avec dates (entête de poste suivant)
+  // ou quand il y a une ligne vide
+  const blocks = [];
+  let currentBlock = [];
+
+  function flush() {
+    const cleaned = currentBlock.filter(l => l.trim());
+    if (cleaned.length > 0) blocks.push(cleaned);
+    currentBlock = [];
+  }
+
+  for (let i = 0; i < secLines.length; i++) {
+    const l = secLines[i];
+    if (!l.trim()) {
+      flush();
+      continue;
+    }
+    if (isDateLine(l) && currentBlock.length > 0 && currentBlock.some(b => b.trim())) {
+      // Date sur sa propre ligne après du contenu = entête du bloc suivant
+      // SAUF si c'est juste après une ligne de titre (= la date appartient au bloc en cours)
+      const last = currentBlock[currentBlock.length - 1].trim();
+      if (last && !isDateLine(last)) {
+        // C'est probablement la date du poste précédent ou du poste suivant
+        // Heuristique : si dans la ligne il y a aussi du texte non-date, c'est un nouveau bloc
+        if (l.replace(/[\d\s/.\-–—]|aujourd'hui|présent|en cours/gi, '').trim().length > 2) {
+          flush();
+        }
+      }
+    }
+    currentBlock.push(l);
+  }
+  flush();
+  return blocks;
+}
+
+function parseExperienceBlock(block) {
+  if (!block.length) return null;
+  // Premier élément = entête, soit "Poste, Entreprise — dates" soit séparé
+  const exp = { poste: '', entreprise: '', periode: '', lieu: '', missions: [] };
+
+  const headerLine = block[0];
+  // Tenter de séparer dates : tout ce qui ressemble à une période
+  let header = headerLine;
+  const dateMatch = headerLine.match(/(?:\b(19|20)\d{2}(?:\s*[-–—]\s*((19|20)\d{2}|aujourd'hui|présent|en cours|actuel))?|\d{1,2}\/\d{4}(?:\s*[-–—]\s*\d{1,2}\/\d{4})?)/i);
+  if (dateMatch) {
+    exp.periode = dateMatch[0].trim();
+    header = headerLine.replace(dateMatch[0], '').replace(/[—|·•\-–]\s*$/, '').trim();
+  }
+  // header est de la forme "Poste, Entreprise" ou "Poste — Entreprise" ou "Poste"
+  // ou "Poste — Entreprise, Lieu"
+  // On split sur — d'abord, puis sur virgule
+  const parts = header.split(/\s+[—–]\s+/).map(p => p.trim()).filter(p => p);
+  if (parts.length >= 2) {
+    exp.poste = parts[0];
+    // Si dernière partie contient une virgule et le deuxième morceau est court → lieu
+    const second = parts.slice(1).join(' — ');
+    const commaSplit = second.split(/,\s*/);
+    exp.entreprise = commaSplit[0].trim();
+    if (commaSplit.length > 1) {
+      exp.lieu = commaSplit.slice(1).join(', ').trim();
+    }
+  } else if (parts.length === 1) {
+    // Pas de séparateur, on tente la virgule
+    const commaSplit = parts[0].split(/,\s*/);
+    if (commaSplit.length >= 2) {
+      exp.poste = commaSplit[0].trim();
+      exp.entreprise = commaSplit[1].trim();
+      if (commaSplit.length > 2) exp.lieu = commaSplit.slice(2).join(', ').trim();
+    } else {
+      exp.poste = parts[0];
+    }
+  }
+
+  // Missions = lignes suivantes
+  for (let i = 1; i < block.length; i++) {
+    const l = block[i].trim().replace(/^[\-•·]\s*/, '');
+    if (l && l.length > 2) exp.missions.push(l);
+  }
+
+  return exp;
+}
+
+function parseFormationBlock(block) {
+  if (!block.length) return null;
+  const f = { diplome: '', etablissement: '', periode: '', lieu: '' };
+  const line = block.join(' ');
+  const dateMatch = line.match(/(?:\b(19|20)\d{2}(?:\s*[-–—]\s*((19|20)\d{2}|aujourd'hui|présent|en cours|actuel))?|\d{1,2}\/\d{4}(?:\s*[-–—]\s*\d{1,2}\/\d{4})?)/i);
+  if (dateMatch) {
+    f.periode = dateMatch[0].trim();
+  }
+  let header = line.replace(dateMatch ? dateMatch[0] : '', '').replace(/[—|·•\-–]\s*$/, '').trim();
+  // Diplôme — Établissement, Lieu
+  const parts = header.split(/\s+[—–]\s+/).map(p => p.trim()).filter(p => p);
+  if (parts.length >= 2) {
+    f.diplome = parts[0];
+    const rest = parts.slice(1).join(' — ');
+    const commaSplit = rest.split(/,\s*/);
+    f.etablissement = commaSplit[0].trim();
+    if (commaSplit.length > 1) f.lieu = commaSplit.slice(1).join(', ').trim();
+  } else if (parts.length === 1) {
+    const commaSplit = parts[0].split(/,\s*/);
+    if (commaSplit.length >= 2) {
+      f.diplome = commaSplit[0].trim();
+      f.etablissement = commaSplit[1].trim();
+      if (commaSplit.length > 2) f.lieu = commaSplit.slice(2).join(', ').trim();
+    } else {
+      f.diplome = parts[0];
+    }
+  }
+  return f;
+}
+
+// Construit les données à partir du formulaire structuré
+function buildFromForm() {
+  const data = {
+    nom: $('fNom').value.trim(),
+    metier: $('fMetier').value.trim(),
+    email: $('fEmail').value.trim(),
+    telephone: $('fTel').value.trim(),
+    ville: $('fVille').value.trim(),
+    linkedin: $('fLinkedin').value.trim(),
+    profil: $('fProfil').value.trim(),
+    experiences: [],
+    formations: [],
+    competences: [],
+    langues: [],
+    hobbies: [],
+  };
+
+  // Expériences : blocs séparés par lignes vides
+  const expBlocks = $('fExp').value.split(/\n\s*\n/).map(b => b.split('\n')).filter(b => b.some(l => l.trim()));
+  for (const block of expBlocks) {
+    const cleaned = block.map(l => l.trim()).filter(l => l);
+    if (cleaned.length === 0) continue;
+    const exp = parseExperienceBlock(cleaned);
+    if (exp) data.experiences.push(exp);
+  }
+
+  // Formations : 1 par ligne
+  const formLines = $('fForm').value.split('\n').map(l => l.trim()).filter(l => l);
+  for (const l of formLines) {
+    const f = parseFormationBlock([l]);
+    if (f) data.formations.push(f);
+  }
+
+  // Compétences
+  data.competences = $('fComp').value
+    .split(/[,;\n]/).map(c => c.trim()).filter(c => c);
+
+  // Langues
+  const langLines = $('fLang').value.split('\n').map(l => l.trim()).filter(l => l);
+  for (const l of langLines) {
+    const parts = l.split(/[—\-:]/).map(p => p.trim());
+    data.langues.push({ nom: parts[0], niveau: parts[1] || '' });
+  }
+
+  return data;
+}
+
+// ============================================================
+// DESIGNS — chacun retourne du SVG
+// ============================================================
+
+const SVG_W = 595;  // A4 width @ 72 dpi
+const SVG_H = 842;
+
+// Helper : escape pour SVG/XML
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Helper : wrap text into multiple lines based on a width (approximate)
+function wrapText(text, charWidth, maxWidth) {
+  if (!text) return [];
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let current = '';
+  for (const w of words) {
+    const test = current ? current + ' ' + w : w;
+    if (test.length * charWidth > maxWidth && current) {
+      lines.push(current);
+      current = w;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+// Design 1: CLASSIQUE SOBRE (Helvetica, gris, sections claires)
+function designClassique(data, palette) {
+  const margin = 45;
+  const w = SVG_W - 2 * margin;
+  const accent = palette.accent;
+  const ink = '#1B1B1B';
+  const soft = '#555555';
+  let y = margin + 8;
+  const out = [];
+
+  out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SVG_W} ${SVG_H}" width="${SVG_W}" height="${SVG_H}" font-family="Helvetica, Arial, sans-serif">`);
+  out.push(`<rect width="100%" height="100%" fill="white"/>`);
+
+  // En-tête : nom grand, métier en dessous
+  if (data.nom) {
+    out.push(`<text x="${margin}" y="${y}" font-size="22" font-weight="700" fill="${ink}">${esc(data.nom)}</text>`);
+    y += 22;
+  }
+  if (data.metier) {
+    out.push(`<text x="${margin}" y="${y + 4}" font-size="11" font-weight="400" fill="${accent}" style="letter-spacing: 0.05em; text-transform: uppercase">${esc(data.metier)}</text>`);
+    y += 16;
+  }
+
+  // Contact ligne
+  const contactBits = [data.email, data.telephone, data.ville, data.linkedin].filter(Boolean);
+  if (contactBits.length) {
+    out.push(`<text x="${margin}" y="${y + 8}" font-size="9" fill="${soft}">${esc(contactBits.join(' · '))}</text>`);
+    y += 20;
+  }
+
+  // Trait fin
+  out.push(`<line x1="${margin}" y1="${y}" x2="${SVG_W - margin}" y2="${y}" stroke="${accent}" stroke-width="1"/>`);
+  y += 16;
+
+  function addSection(title, contentFn) {
+    if (y > SVG_H - 80) return;  // page overflow
+    out.push(`<text x="${margin}" y="${y}" font-size="11" font-weight="700" fill="${ink}" style="letter-spacing: 0.08em; text-transform: uppercase">${esc(title)}</text>`);
+    y += 14;
+    contentFn();
+    y += 10;
+  }
+
+  // Profil
+  if (data.profil) {
+    addSection('Profil', () => {
+      const wrapped = wrapText(data.profil, 4.2, w);
+      for (const line of wrapped.slice(0, 4)) {
+        out.push(`<text x="${margin}" y="${y}" font-size="9.5" fill="${ink}">${esc(line)}</text>`);
+        y += 12;
+      }
+    });
+  }
+
+  // Expériences
+  if (data.experiences.length) {
+    addSection('Expérience professionnelle', () => {
+      for (const exp of data.experiences) {
+        if (y > SVG_H - 60) break;
+        // Titre poste — entreprise
+        const ttl = [exp.poste, exp.entreprise].filter(Boolean).join(' — ');
+        out.push(`<text x="${margin}" y="${y}" font-size="10.5" font-weight="700" fill="${ink}">${esc(ttl)}</text>`);
+        y += 12;
+        // Période
+        const meta = [exp.periode, exp.lieu].filter(Boolean).join(' · ');
+        if (meta) {
+          out.push(`<text x="${margin}" y="${y}" font-size="9" fill="${soft}" font-style="italic">${esc(meta)}</text>`);
+          y += 13;
+        }
+        // Missions
+        for (const m of exp.missions) {
+          const wrapped = wrapText(m, 4.2, w - 10);
+          for (let i = 0; i < wrapped.length; i++) {
+            const prefix = i === 0 ? '• ' : '  ';
+            out.push(`<text x="${margin}" y="${y}" font-size="9.5" fill="${ink}">${esc(prefix + wrapped[i])}</text>`);
+            y += 12;
+            if (y > SVG_H - 50) break;
+          }
+          if (y > SVG_H - 50) break;
+        }
+        y += 6;
+      }
+    });
+  }
+
+  // Formation
+  if (data.formations.length) {
+    addSection('Formation', () => {
+      for (const f of data.formations) {
+        if (y > SVG_H - 40) break;
+        const ttl = [f.diplome, f.etablissement].filter(Boolean).join(' — ');
+        out.push(`<text x="${margin}" y="${y}" font-size="10.5" font-weight="700" fill="${ink}">${esc(ttl)}</text>`);
+        y += 12;
+        const meta = [f.periode, f.lieu].filter(Boolean).join(' · ');
+        if (meta) {
+          out.push(`<text x="${margin}" y="${y}" font-size="9" fill="${soft}" font-style="italic">${esc(meta)}</text>`);
+          y += 13;
+        }
+        y += 4;
+      }
+    });
+  }
+
+  // Compétences
+  if (data.competences.length) {
+    addSection('Compétences', () => {
+      const wrapped = wrapText(data.competences.join(', '), 4.2, w);
+      for (const line of wrapped.slice(0, 4)) {
+        out.push(`<text x="${margin}" y="${y}" font-size="9.5" fill="${ink}">${esc(line)}</text>`);
+        y += 12;
+      }
+    });
+  }
+
+  // Langues
+  if (data.langues.length) {
+    addSection('Langues', () => {
+      const langStr = data.langues.map(l => l.niveau ? `${l.nom} (${l.niveau})` : l.nom).join(' · ');
+      const wrapped = wrapText(langStr, 4.2, w);
+      for (const line of wrapped.slice(0, 2)) {
+        out.push(`<text x="${margin}" y="${y}" font-size="9.5" fill="${ink}">${esc(line)}</text>`);
+        y += 12;
+      }
+    });
+  }
+
+  out.push('</svg>');
+  return out.join('\n');
+}
+
+// Design 2: MODERNE MINIMAL (Inter, accent latéral)
+function designModerne(data, palette) {
+  const margin = 50;
+  const accentBarW = 4;
+  const contentX = margin + accentBarW + 10;
+  const w = SVG_W - contentX - margin;
+  const accent = palette.accent;
+  const ink = '#1A1A1A';
+  const soft = '#666666';
+  let y = margin + 5;
+  const out = [];
+
+  out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SVG_W} ${SVG_H}" width="${SVG_W}" height="${SVG_H}" font-family="Inter, Helvetica, Arial, sans-serif">`);
+  out.push(`<rect width="100%" height="100%" fill="white"/>`);
+
+  // Nom + métier
+  if (data.nom) {
+    out.push(`<text x="${contentX}" y="${y + 18}" font-size="26" font-weight="600" fill="${ink}" style="letter-spacing: -0.02em">${esc(data.nom)}</text>`);
+    y += 28;
+  }
+  if (data.metier) {
+    out.push(`<text x="${contentX}" y="${y + 14}" font-size="12" font-weight="500" fill="${accent}">${esc(data.metier)}</text>`);
+    y += 22;
+  }
+
+  // Contact
+  const contactBits = [data.email, data.telephone, data.ville, data.linkedin].filter(Boolean);
+  if (contactBits.length) {
+    const wrapped = wrapText(contactBits.join('   ·   '), 4.4, w);
+    for (const line of wrapped.slice(0, 2)) {
+      out.push(`<text x="${contentX}" y="${y + 10}" font-size="9" fill="${soft}" style="letter-spacing: 0.02em">${esc(line)}</text>`);
+      y += 12;
+    }
+  }
+  y += 8;
+
+  // Calculer la longueur de la barre accent (toute la hauteur du contenu)
+  const barStart = margin + 5;
+
+  function addSection(title, contentFn) {
+    if (y > SVG_H - 80) return;
+    y += 8;
+    out.push(`<text x="${contentX}" y="${y + 8}" font-size="10" font-weight="600" fill="${accent}" style="letter-spacing: 0.16em; text-transform: uppercase">${esc(title)}</text>`);
+    y += 18;
+    contentFn();
+    y += 6;
+  }
+
+  if (data.profil) {
+    addSection('Profil', () => {
+      const wrapped = wrapText(data.profil, 4.4, w);
+      for (const line of wrapped.slice(0, 4)) {
+        out.push(`<text x="${contentX}" y="${y}" font-size="10" fill="${ink}">${esc(line)}</text>`);
+        y += 13;
+      }
+    });
+  }
+
+  if (data.experiences.length) {
+    addSection('Expérience', () => {
+      for (const exp of data.experiences) {
+        if (y > SVG_H - 60) break;
+        const ttl = [exp.poste, exp.entreprise].filter(Boolean).join(' · ');
+        out.push(`<text x="${contentX}" y="${y}" font-size="11" font-weight="600" fill="${ink}">${esc(ttl)}</text>`);
+        y += 13;
+        const meta = [exp.periode, exp.lieu].filter(Boolean).join(' — ');
+        if (meta) {
+          out.push(`<text x="${contentX}" y="${y}" font-size="9" fill="${soft}">${esc(meta)}</text>`);
+          y += 13;
+        }
+        for (const m of exp.missions) {
+          const wrapped = wrapText(m, 4.4, w - 14);
+          for (let i = 0; i < wrapped.length; i++) {
+            const prefix = i === 0 ? '— ' : '  ';
+            out.push(`<text x="${contentX}" y="${y}" font-size="10" fill="${ink}">${esc(prefix + wrapped[i])}</text>`);
+            y += 13;
+            if (y > SVG_H - 50) break;
+          }
+          if (y > SVG_H - 50) break;
+        }
+        y += 6;
+      }
+    });
+  }
+
+  if (data.formations.length) {
+    addSection('Formation', () => {
+      for (const f of data.formations) {
+        if (y > SVG_H - 40) break;
+        const ttl = [f.diplome, f.etablissement].filter(Boolean).join(' · ');
+        out.push(`<text x="${contentX}" y="${y}" font-size="11" font-weight="600" fill="${ink}">${esc(ttl)}</text>`);
+        y += 13;
+        const meta = [f.periode, f.lieu].filter(Boolean).join(' — ');
+        if (meta) {
+          out.push(`<text x="${contentX}" y="${y}" font-size="9" fill="${soft}">${esc(meta)}</text>`);
+          y += 13;
+        }
+        y += 4;
+      }
+    });
+  }
+
+  if (data.competences.length) {
+    addSection('Compétences', () => {
+      const wrapped = wrapText(data.competences.join('  ·  '), 4.4, w);
+      for (const line of wrapped.slice(0, 4)) {
+        out.push(`<text x="${contentX}" y="${y}" font-size="10" fill="${ink}">${esc(line)}</text>`);
+        y += 13;
+      }
+    });
+  }
+
+  if (data.langues.length) {
+    addSection('Langues', () => {
+      const langStr = data.langues.map(l => l.niveau ? `${l.nom} (${l.niveau})` : l.nom).join('  ·  ');
+      const wrapped = wrapText(langStr, 4.4, w);
+      for (const line of wrapped.slice(0, 2)) {
+        out.push(`<text x="${contentX}" y="${y}" font-size="10" fill="${ink}">${esc(line)}</text>`);
+        y += 13;
+      }
+    });
+  }
+
+  // Barre accent verticale gauche
+  out.push(`<rect x="${margin}" y="${barStart}" width="${accentBarW}" height="${y - barStart + 5}" fill="${accent}"/>`);
+
+  out.push('</svg>');
+  return out.join('\n');
+}
+
+// Design 3: ÉLÉGANT SERIF (Source Serif, typographie classique)
+function designSerif(data, palette) {
+  const margin = 55;
+  const w = SVG_W - 2 * margin;
+  const accent = palette.accent;
+  const ink = '#1A1A1A';
+  const soft = '#5A5A5A';
+  let y = margin + 10;
+  const out = [];
+
+  out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SVG_W} ${SVG_H}" width="${SVG_W}" height="${SVG_H}">`);
+  out.push(`<rect width="100%" height="100%" fill="white"/>`);
+
+  // Nom centré + métier centré
+  if (data.nom) {
+    out.push(`<text x="${SVG_W/2}" y="${y + 8}" font-family="'Source Serif 4', 'Georgia', serif" font-size="26" font-weight="400" fill="${ink}" text-anchor="middle" style="letter-spacing: -0.01em">${esc(data.nom)}</text>`);
+    y += 26;
+  }
+  if (data.metier) {
+    out.push(`<text x="${SVG_W/2}" y="${y + 6}" font-family="'Source Serif 4', 'Georgia', serif" font-size="11" font-weight="400" fill="${accent}" text-anchor="middle" font-style="italic">${esc(data.metier)}</text>`);
+    y += 14;
+  }
+
+  // Contact centré
+  const contactBits = [data.email, data.telephone, data.ville, data.linkedin].filter(Boolean);
+  if (contactBits.length) {
+    out.push(`<text x="${SVG_W/2}" y="${y + 12}" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="${soft}" text-anchor="middle" style="letter-spacing: 0.08em">${esc(contactBits.join('   ·   '))}</text>`);
+    y += 20;
+  }
+
+  // Petit ornement
+  out.push(`<line x1="${SVG_W/2 - 15}" y1="${y}" x2="${SVG_W/2 + 15}" y2="${y}" stroke="${accent}" stroke-width="0.8"/>`);
+  y += 16;
+
+  function addSection(title, contentFn) {
+    if (y > SVG_H - 80) return;
+    out.push(`<text x="${SVG_W/2}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="13" font-weight="600" fill="${ink}" text-anchor="middle" style="letter-spacing: 0.05em">${esc(title)}</text>`);
+    y += 18;
+    contentFn();
+    y += 10;
+  }
+
+  if (data.profil) {
+    addSection('Profil', () => {
+      const wrapped = wrapText(data.profil, 4.5, w);
+      for (const line of wrapped.slice(0, 4)) {
+        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="10.5" fill="${ink}">${esc(line)}</text>`);
+        y += 14;
+      }
+    });
+  }
+
+  if (data.experiences.length) {
+    addSection('Expérience professionnelle', () => {
+      for (const exp of data.experiences) {
+        if (y > SVG_H - 60) break;
+        const ttl = [exp.poste, exp.entreprise].filter(Boolean).join(', ');
+        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="11" font-weight="600" fill="${ink}">${esc(ttl)}</text>`);
+        y += 13;
+        const meta = [exp.periode, exp.lieu].filter(Boolean).join(' · ');
+        if (meta) {
+          out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="9.5" fill="${soft}" font-style="italic">${esc(meta)}</text>`);
+          y += 14;
+        }
+        for (const m of exp.missions) {
+          const wrapped = wrapText(m, 4.5, w - 14);
+          for (let i = 0; i < wrapped.length; i++) {
+            const prefix = i === 0 ? '· ' : '  ';
+            out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="10.5" fill="${ink}">${esc(prefix + wrapped[i])}</text>`);
+            y += 13;
+            if (y > SVG_H - 50) break;
+          }
+          if (y > SVG_H - 50) break;
+        }
+        y += 6;
+      }
+    });
+  }
+
+  if (data.formations.length) {
+    addSection('Formation', () => {
+      for (const f of data.formations) {
+        if (y > SVG_H - 40) break;
+        const ttl = [f.diplome, f.etablissement].filter(Boolean).join(', ');
+        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="11" font-weight="600" fill="${ink}">${esc(ttl)}</text>`);
+        y += 13;
+        const meta = [f.periode, f.lieu].filter(Boolean).join(' · ');
+        if (meta) {
+          out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="9.5" fill="${soft}" font-style="italic">${esc(meta)}</text>`);
+          y += 14;
+        }
+        y += 4;
+      }
+    });
+  }
+
+  if (data.competences.length) {
+    addSection('Compétences', () => {
+      const wrapped = wrapText(data.competences.join(', '), 4.5, w);
+      for (const line of wrapped.slice(0, 4)) {
+        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="10.5" fill="${ink}">${esc(line)}</text>`);
+        y += 13;
+      }
+    });
+  }
+
+  if (data.langues.length) {
+    addSection('Langues', () => {
+      const langStr = data.langues.map(l => l.niveau ? `${l.nom} (${l.niveau})` : l.nom).join(' · ');
+      const wrapped = wrapText(langStr, 4.5, w);
+      for (const line of wrapped.slice(0, 2)) {
+        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="10.5" fill="${ink}">${esc(line)}</text>`);
+        y += 13;
+      }
+    });
+  }
+
+  out.push('</svg>');
+  return out.join('\n');
+}
+
+// ============================================================
+// PALETTES — variantes d'accent pour le bouton "regénérer"
+// ============================================================
+
+const PALETTES = [
+  { name: 'terra',    accent: '#C84B31' },
+  { name: 'slate',    accent: '#3D5A6C' },
+  { name: 'ocre',     accent: '#B47A1E' },
+  { name: 'olive',    accent: '#5C7340' },
+  { name: 'plum',     accent: '#6B3A4A' },
+  { name: 'graphite', accent: '#2A2A2A' },
+];
+
+let currentPaletteIdx = 0;
+
+const DESIGNS = [
+  { name: 'classique', fn: designClassique, title: 'Classique sobre', traits: 'Helvetica · structure verticale · sections capitales' },
+  { name: 'moderne',   fn: designModerne,   title: 'Moderne minimal', traits: 'Inter · barre d\'accent latérale · titres sm-caps' },
+  { name: 'serif',     fn: designSerif,     title: 'Élégant serif',   traits: 'Source Serif · titres centrés · pour profils académiques/littéraires' },
+];
+
+// ============================================================
+// GENERATION PDF (à partir des données, structure linéaire)
+// ============================================================
+
+const { PDFDocument, PDFName, StandardFonts, rgb } = PDFLib;
+
+async function generatePdf(data, designName, palette) {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([595, 842]);
+  const fontReg = await pdf.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const fontItal = await pdf.embedFont(StandardFonts.HelveticaOblique);
+
+  const margin = 50;
+  const w = 595 - 2 * margin;
+  let y = 842 - margin;
+
+  // Couleurs : pour le PDF, on simplifie en ink/accent/soft
+  const accentColor = hexToRgb(palette.accent);
+  const inkColor = rgb(0.1, 0.1, 0.1);
+  const softColor = rgb(0.4, 0.4, 0.4);
+
+  function drawText(text, x, opts = {}) {
+    const fontSize = opts.size || 10;
+    const font = opts.bold ? fontBold : (opts.italic ? fontItal : fontReg);
+    const color = opts.color || inkColor;
+    if (y < margin + fontSize) return;
+    page.drawText(text, { x, y, size: fontSize, font, color });
+    y -= opts.lineHeight || fontSize + 3;
+  }
+
+  function drawWrapped(text, x, opts = {}) {
+    if (!text) return;
+    const fontSize = opts.size || 10;
+    const font = opts.bold ? fontBold : (opts.italic ? fontItal : fontReg);
+    const color = opts.color || inkColor;
+    const maxWidth = opts.maxWidth || w;
+    const words = String(text).split(/\s+/);
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (font.widthOfTextAtSize(test, fontSize) > maxWidth && line) {
+        if (y < margin + fontSize) return;
+        page.drawText(line, { x, y, size: fontSize, font, color });
+        y -= (opts.lineHeight || fontSize + 3);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) {
+      if (y >= margin + fontSize) {
+        page.drawText(line, { x, y, size: fontSize, font, color });
+      }
+      y -= (opts.lineHeight || fontSize + 3);
+    }
+  }
+
+  function drawSectionTitle(title) {
+    y -= 6;
+    if (y < margin + 14) return;
+    page.drawText(title.toUpperCase(), {
+      x: margin, y, size: 10, font: fontBold, color: inkColor,
+    });
+    // soulignement accent
+    const tw = fontBold.widthOfTextAtSize(title.toUpperCase(), 10);
+    page.drawLine({
+      start: { x: margin, y: y - 3 },
+      end: { x: margin + Math.min(tw + 40, w), y: y - 3 },
+      thickness: 0.5, color: accentColor,
+    });
+    y -= 18;
+  }
+
+  // En-tête
+  if (data.nom) {
+    page.drawText(data.nom, { x: margin, y, size: 20, font: fontBold, color: inkColor });
+    y -= 24;
+  }
+  if (data.metier) {
+    page.drawText(data.metier, { x: margin, y, size: 11, font: fontReg, color: accentColor });
+    y -= 16;
+  }
+  const contactBits = [data.email, data.telephone, data.ville, data.linkedin].filter(Boolean);
+  if (contactBits.length) {
+    drawWrapped(contactBits.join(' · '), margin, { size: 9, color: softColor });
+  }
+  y -= 10;
+
+  // Profil
+  if (data.profil) {
+    drawSectionTitle('Profil');
+    drawWrapped(data.profil, margin, { size: 10, lineHeight: 13 });
+  }
+
+  // Expériences
+  if (data.experiences.length) {
+    drawSectionTitle('Expérience professionnelle');
+    for (const exp of data.experiences) {
+      const ttl = [exp.poste, exp.entreprise].filter(Boolean).join(' — ');
+      drawText(ttl, margin, { size: 10.5, bold: true });
+      const meta = [exp.periode, exp.lieu].filter(Boolean).join(' · ');
+      if (meta) drawText(meta, margin, { size: 9, italic: true, color: softColor });
+      for (const m of exp.missions) {
+        drawWrapped('• ' + m, margin, { size: 10, lineHeight: 13, maxWidth: w - 5 });
+      }
+      y -= 4;
+    }
+  }
+
+  // Formations
+  if (data.formations.length) {
+    drawSectionTitle('Formation');
+    for (const f of data.formations) {
+      const ttl = [f.diplome, f.etablissement].filter(Boolean).join(' — ');
+      drawText(ttl, margin, { size: 10.5, bold: true });
+      const meta = [f.periode, f.lieu].filter(Boolean).join(' · ');
+      if (meta) drawText(meta, margin, { size: 9, italic: true, color: softColor });
+      y -= 2;
+    }
+  }
+
+  // Compétences
+  if (data.competences.length) {
+    drawSectionTitle('Compétences');
+    drawWrapped(data.competences.join(', '), margin, { size: 10, lineHeight: 13 });
+  }
+
+  // Langues
+  if (data.langues.length) {
+    drawSectionTitle('Langues');
+    const langStr = data.langues.map(l => l.niveau ? `${l.nom} (${l.niveau})` : l.nom).join(' · ');
+    drawWrapped(langStr, margin, { size: 10, lineHeight: 13 });
+  }
+
+  // Métadonnées propres
+  pdf.setTitle(`CV — ${data.nom || 'Candidat'}`);
+  pdf.setAuthor(data.nom || 'Candidat');
+  pdf.setSubject(data.metier || 'CV');
+  pdf.setProducer('');
+  pdf.setCreator('');
+  pdf.setLanguage('fr-FR');
+
+  return await pdf.save({ useObjectStreams: false });
+}
+
+function hexToRgb(hex) {
+  const m = hex.replace('#', '').match(/.{1,2}/g);
+  if (!m) return rgb(0, 0, 0);
+  return rgb(parseInt(m[0], 16)/255, parseInt(m[1], 16)/255, parseInt(m[2], 16)/255);
+}
+
+// ============================================================
+// UI
+// ============================================================
+
+const $ = id => document.getElementById(id);
+
+const setupSection = $('setupSection');
+const designsSection = $('designsSection');
+const cvPaste = $('cvPaste');
+const generateBtn = $('generateBtn');
+const loadExampleBtn = $('loadExampleBtn');
+const regenBtn = $('regenBtn');
+const backBtn = $('backBtn');
+const errMsg = $('errMsg');
+const designsGrid = $('designsGrid');
+const detected = $('detected');
+
+let mode = 'paste';
+let currentData = null;
+
+// Tabs
+document.querySelectorAll('.setup-tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.setup-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    mode = t.dataset.mode;
+    document.getElementById('pasteTab').style.display = mode === 'paste' ? 'block' : 'none';
+    document.getElementById('formTab').style.display = mode === 'form' ? 'grid' : 'none';
+  });
+});
+
+generateBtn.addEventListener('click', () => {
+  errMsg.textContent = '';
+  let data;
+  try {
+    if (mode === 'paste') {
+      const txt = cvPaste.value.trim();
+      if (txt.length < 50) {
+        errMsg.textContent = 'Colle d\'abord ton CV (au moins quelques lignes).';
+        return;
+      }
+      data = parseCV(txt);
+    } else {
+      data = buildFromForm();
+      if (!data.nom) {
+        errMsg.textContent = 'Au minimum, donne ton nom.';
+        return;
+      }
+    }
+    currentData = data;
+    showDesigns();
+  } catch (e) {
+    console.error(e);
+    errMsg.textContent = 'Erreur lors de la lecture des données : ' + e.message;
+  }
+});
+
+regenBtn.addEventListener('click', () => {
+  currentPaletteIdx = (currentPaletteIdx + 1) % PALETTES.length;
+  renderDesigns();
+});
+
+backBtn.addEventListener('click', () => {
+  setupSection.style.display = 'block';
+  designsSection.classList.remove('show');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+function showDesigns() {
+  setupSection.style.display = 'none';
+  designsSection.classList.add('show');
+  renderDetected();
+  renderDesigns();
+  designsSection.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function renderDetected() {
+  const d = currentData;
+  const rows = [
+    ['nom', d.nom],
+    ['métier', d.metier],
+    ['email', d.email],
+    ['téléphone', d.telephone],
+    ['ville', d.ville],
+    ['linkedin', d.linkedin],
+    ['profil', d.profil ? d.profil.slice(0, 90) + (d.profil.length > 90 ? '…' : '') : ''],
+    ['expériences', d.experiences.length ? `${d.experiences.length} (${d.experiences.reduce((s,e) => s + e.missions.length, 0)} missions au total)` : ''],
+    ['formations', d.formations.length ? `${d.formations.length}` : ''],
+    ['compétences', d.competences.length ? `${d.competences.length} (${d.competences.slice(0,5).join(', ')}${d.competences.length > 5 ? '…' : ''})` : ''],
+    ['langues', d.langues.length ? d.langues.map(l => l.niveau ? `${l.nom} (${l.niveau})` : l.nom).join(' · ') : ''],
+  ];
+  let html = '<h4>Données détectées dans ton CV</h4>';
+  for (const [k, v] of rows) {
+    html += `<div class="det-row"><span class="k">${k}</span><span class="v ${v ? '' : 'empty'}">${v ? escapeHtml(v) : '(vide)'}</span></div>`;
+  }
+  detected.innerHTML = html;
+}
+
+function renderDesigns() {
+  designsGrid.innerHTML = '';
+  const palette = PALETTES[currentPaletteIdx];
+  for (const design of DESIGNS) {
+    const svg = design.fn(currentData, palette);
+    const card = document.createElement('div');
+    card.className = 'design-card';
+    card.innerHTML = `
+      <div class="design-card-header">
+        <h3>${escapeHtml(design.title)}</h3>
+        <span class="tag">accent · ${palette.name}</span>
+      </div>
+      <div class="design-preview-wrap">${svg}</div>
+      <div class="design-card-footer">
+        <span class="traits">${escapeHtml(design.traits)}</span>
+        <button class="btn tiny" data-design="${design.name}">↓ PDF</button>
+      </div>
+    `;
+    card.querySelector('button').addEventListener('click', async (e) => {
+      e.target.disabled = true;
+      e.target.innerHTML = '<span class="spinner"></span>...';
+      try {
+        const bytes = await generatePdf(currentData, design.name, palette);
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `cv_${design.name}_${(currentData.nom || 'candidat').toLowerCase().replace(/\s+/g, '_')}.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      } catch(err) {
+        console.error(err);
+        alert('Erreur génération PDF : ' + err.message);
+      } finally {
+        e.target.disabled = false;
+        e.target.innerHTML = '↓ PDF';
+      }
+    });
+    designsGrid.appendChild(card);
+  }
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Exemple
+const EXAMPLE_CV = `Marie Lefèvre
+Chargée de communication digitale
+marie.lefevre@example.com — 06 12 34 56 78 — Lyon, France
+linkedin.com/in/marielefevre
+
+Profil
+Chargée de communication digitale avec 3 ans d'expérience en gestion de réseaux sociaux et pilotage de campagnes payantes. Recherche un poste en CDI dans le secteur de la culture ou de l'ESS.
+
+Expérience professionnelle
+
+Chargée de communication, Association Lumières — 09/2022 - 06/2024
+Pilote la stratégie de communication digitale sur Instagram, LinkedIn et newsletter.
+Anime une communauté de 12 000 abonnés, croissance de 35% en 2 ans.
+Coordonne 4 campagnes Meta Ads par an avec un budget total de 18 000 €.
+Rédige 24 articles de blog par an, optimisés SEO (+50% trafic organique).
+
+Assistante communication, Maison de la Culture de Grenoble — 09/2020 - 08/2022
+Gestion quotidienne des réseaux sociaux Facebook, Instagram et Twitter.
+Conception de visuels pour les supports print et web.
+Suivi des indicateurs de performance (KPI) et reporting mensuel.
+
+Formation
+Master Information et Communication, Université Lyon 2 — 2022
+Licence Info-Com, Université Grenoble Alpes — 2020
+
+Compétences
+Suite Adobe (Photoshop, Premiere, InDesign), Canva, WordPress, Meta Business Suite, Google Analytics, Mailchimp
+
+Langues
+Français — natif
+Anglais — C1 (TOEIC 945)
+Espagnol — B1`;
+
+loadExampleBtn.addEventListener('click', () => {
+  cvPaste.value = EXAMPLE_CV;
+});
+</script>
+
+</body>
+</html>
