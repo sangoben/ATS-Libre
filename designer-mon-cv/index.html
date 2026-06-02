@@ -366,9 +366,9 @@
   </nav>
 
   <header>
-    <span class="eyebrow">Étape 4 · plusieurs designs au choix</span>
-    <h1>Trois <em>designs propres</em>, à toi de choisir</h1>
-    <p class="tagline">Si éditer ton CV existant t'épuise, change d'angle : pars de tes données brutes et choisis parmi des designs sobres, tous strictement ATS-compliant. Pas de colonnes, pas d'icônes, pas de jauges.</p>
+    <span class="eyebrow">Étape 4 · 11 looks × 9 palettes ≈ 100 designs</span>
+    <h1>Pioche un <em>design propre</em>, change quand tu veux</h1>
+    <p class="tagline">Si éditer ton CV existant t'épuise, change d'angle : pars de tes données brutes et explore une centaine de variations, toutes strictement ATS-compliant. Pas de colonnes, pas d'icônes, pas de jauges — juste des typos et des mises en page éprouvées.</p>
   </header>
 
   <div class="promise">
@@ -470,10 +470,10 @@ Espagnol — B1"></textarea>
     <div class="designs-header">
       <div>
         <h2>Trois designs générés à partir de tes données</h2>
-        <p>Tu peux télécharger chacun en PDF, ou demander d'autres variantes.</p>
+        <p>Chaque "regénérer" tire 3 styles distincts au hasard parmi <strong>11 looks</strong> et <strong>9 palettes</strong> — tu peux explorer une centaine de combinaisons.</p>
       </div>
       <div class="designs-actions">
-        <button class="btn ghost" id="regenBtn">↻ Regénérer</button>
+        <button class="btn ghost" id="regenBtn">↻ Regénérer (autres designs)</button>
         <button class="btn ghost" id="backBtn">← Modifier les données</button>
       </div>
     </div>
@@ -889,6 +889,10 @@ function buildFromForm() {
 // DESIGNS — chacun retourne du SVG
 // ============================================================
 
+// ============================================================
+// DESIGNS — système de presets + rendu paramétrable
+// ============================================================
+
 const SVG_W = 595;  // A4 width @ 72 dpi
 const SVG_H = 842;
 
@@ -900,9 +904,16 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Helper : wrap text into multiple lines based on a width (approximate)
-function wrapText(text, charWidth, maxWidth) {
+// Largeur approchée d'un texte (pour le wrap). Coeff par police.
+const FONT_WIDTH_COEFF = {
+  helvetica: 4.6, inter: 4.6, jakarta: 4.7,
+  georgia: 4.8, sourceserif: 4.8, times: 4.5,
+  jetbrains: 5.4, courier: 5.6,
+};
+function wrapText(text, fontSize, fontKey, maxWidth) {
   if (!text) return [];
+  const coeff = FONT_WIDTH_COEFF[fontKey] || 4.6;
+  const charWidth = fontSize * coeff / 10;
   const words = String(text).split(/\s+/);
   const lines = [];
   let current = '';
@@ -919,419 +930,518 @@ function wrapText(text, charWidth, maxWidth) {
   return lines;
 }
 
-// Design 1: CLASSIQUE SOBRE (Helvetica, gris, sections claires)
-function designClassique(data, palette) {
-  const margin = 45;
-  const w = SVG_W - 2 * margin;
-  const accent = palette.accent;
-  const ink = '#1B1B1B';
-  const soft = '#555555';
-  let y = margin + 8;
-  const out = [];
+// Familles de polices (CSS family strings)
+const FONTS = {
+  helvetica: "Helvetica, Arial, sans-serif",
+  inter:     "'Inter', Helvetica, Arial, sans-serif",
+  jakarta:   "'Plus Jakarta Sans', Helvetica, sans-serif",
+  georgia:   "Georgia, 'Times New Roman', serif",
+  sourceserif: "'Source Serif 4', Georgia, serif",
+  times:     "'Times New Roman', Georgia, serif",
+  jetbrains: "'JetBrains Mono', Menlo, Consolas, monospace",
+};
 
-  out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SVG_W} ${SVG_H}" width="${SVG_W}" height="${SVG_H}" font-family="Helvetica, Arial, sans-serif">`);
-  out.push(`<rect width="100%" height="100%" fill="white"/>`);
-
-  // En-tête : nom grand, métier en dessous
-  if (data.nom) {
-    out.push(`<text x="${margin}" y="${y}" font-size="22" font-weight="700" fill="${ink}">${esc(data.nom)}</text>`);
-    y += 22;
-  }
-  if (data.metier) {
-    out.push(`<text x="${margin}" y="${y + 4}" font-size="11" font-weight="400" fill="${accent}" style="letter-spacing: 0.05em; text-transform: uppercase">${esc(data.metier)}</text>`);
-    y += 16;
-  }
-
-  // Contact ligne
-  const contactBits = [data.email, data.telephone, data.ville, data.linkedin].filter(Boolean);
-  if (contactBits.length) {
-    out.push(`<text x="${margin}" y="${y + 8}" font-size="9" fill="${soft}">${esc(contactBits.join(' · '))}</text>`);
-    y += 20;
-  }
-
-  // Trait fin
-  out.push(`<line x1="${margin}" y1="${y}" x2="${SVG_W - margin}" y2="${y}" stroke="${accent}" stroke-width="1"/>`);
-  y += 16;
-
-  function addSection(title, contentFn) {
-    if (y > SVG_H - 80) return;  // page overflow
-    out.push(`<text x="${margin}" y="${y}" font-size="11" font-weight="700" fill="${ink}" style="letter-spacing: 0.08em; text-transform: uppercase">${esc(title)}</text>`);
-    y += 14;
-    contentFn();
-    y += 10;
-  }
-
-  // Profil
-  if (data.profil) {
-    addSection('Profil', () => {
-      const wrapped = wrapText(data.profil, 4.2, w);
-      for (const line of wrapped.slice(0, 4)) {
-        out.push(`<text x="${margin}" y="${y}" font-size="9.5" fill="${ink}">${esc(line)}</text>`);
-        y += 12;
-      }
-    });
-  }
-
-  // Expériences
-  if (data.experiences.length) {
-    addSection('Expérience professionnelle', () => {
-      for (const exp of data.experiences) {
-        if (y > SVG_H - 60) break;
-        // Titre poste — entreprise
-        const ttl = [exp.poste, exp.entreprise].filter(Boolean).join(' — ');
-        out.push(`<text x="${margin}" y="${y}" font-size="10.5" font-weight="700" fill="${ink}">${esc(ttl)}</text>`);
-        y += 12;
-        // Période
-        const meta = [exp.periode, exp.lieu].filter(Boolean).join(' · ');
-        if (meta) {
-          out.push(`<text x="${margin}" y="${y}" font-size="9" fill="${soft}" font-style="italic">${esc(meta)}</text>`);
-          y += 13;
-        }
-        // Missions
-        for (const m of exp.missions) {
-          const wrapped = wrapText(m, 4.2, w - 10);
-          for (let i = 0; i < wrapped.length; i++) {
-            const prefix = i === 0 ? '• ' : '  ';
-            out.push(`<text x="${margin}" y="${y}" font-size="9.5" fill="${ink}">${esc(prefix + wrapped[i])}</text>`);
-            y += 12;
-            if (y > SVG_H - 50) break;
-          }
-          if (y > SVG_H - 50) break;
-        }
-        y += 6;
-      }
-    });
-  }
-
-  // Formation
-  if (data.formations.length) {
-    addSection('Formation', () => {
-      for (const f of data.formations) {
-        if (y > SVG_H - 40) break;
-        const ttl = [f.diplome, f.etablissement].filter(Boolean).join(' — ');
-        out.push(`<text x="${margin}" y="${y}" font-size="10.5" font-weight="700" fill="${ink}">${esc(ttl)}</text>`);
-        y += 12;
-        const meta = [f.periode, f.lieu].filter(Boolean).join(' · ');
-        if (meta) {
-          out.push(`<text x="${margin}" y="${y}" font-size="9" fill="${soft}" font-style="italic">${esc(meta)}</text>`);
-          y += 13;
-        }
-        y += 4;
-      }
-    });
-  }
-
-  // Compétences
-  if (data.competences.length) {
-    addSection('Compétences', () => {
-      const wrapped = wrapText(data.competences.join(', '), 4.2, w);
-      for (const line of wrapped.slice(0, 4)) {
-        out.push(`<text x="${margin}" y="${y}" font-size="9.5" fill="${ink}">${esc(line)}</text>`);
-        y += 12;
-      }
-    });
-  }
-
-  // Langues
-  if (data.langues.length) {
-    addSection('Langues', () => {
-      const langStr = data.langues.map(l => l.niveau ? `${l.nom} (${l.niveau})` : l.nom).join(' · ');
-      const wrapped = wrapText(langStr, 4.2, w);
-      for (const line of wrapped.slice(0, 2)) {
-        out.push(`<text x="${margin}" y="${y}" font-size="9.5" fill="${ink}">${esc(line)}</text>`);
-        y += 12;
-      }
-    });
-  }
-
-  out.push('</svg>');
-  return out.join('\n');
+// Style d'une casse de titre de section
+//   upper: TOUT EN MAJUSCULES   tracking large
+//   smcaps: Capitales avec tracking ("small caps simulation")
+//   title: Title Case classique
+//   italic: italique titre case
+function fmtSectionTitle(s, style) {
+  if (style === 'upper') return s.toUpperCase();
+  if (style === 'smcaps') return s.toUpperCase();
+  return s;
 }
 
-// Design 2: MODERNE MINIMAL (Inter, accent latéral)
-function designModerne(data, palette) {
-  const margin = 50;
-  const accentBarW = 4;
-  const contentX = margin + accentBarW + 10;
-  const w = SVG_W - contentX - margin;
-  const accent = palette.accent;
-  const ink = '#1A1A1A';
-  const soft = '#666666';
-  let y = margin + 5;
+// ============================================================
+// PRESETS — chaque preset est un "look" cohérent inspiré
+// de styles éprouvés (Stanford CS, McKinsey, édito, Suisse, etc.)
+// ============================================================
+
+const PRESETS = [
+  {
+    id: 'stanford',
+    name: 'Tech Stanford',
+    base: 'classique',
+    nameFont: 'inter', nameSize: 22, nameWeight: 700, nameAlign: 'left', nameCase: 'normal', nameTracking: -0.01,
+    metierFont: 'inter', metierSize: 11, metierWeight: 400, metierStyle: 'normal', metierCase: 'normal',
+    contactFont: 'inter', contactSize: 9, contactSep: ' · ',
+    bodyFont: 'inter', bodySize: 10,
+    sectionFont: 'inter', sectionSize: 10, sectionWeight: 700, sectionCase: 'upper', sectionTracking: 0.08, sectionStyle: 'gras',
+    sectionDecoration: 'underline-thin',
+    datePosition: 'right',
+    bulletChar: '•',
+    spacingScale: 0.95,
+  },
+  {
+    id: 'mckinsey',
+    name: 'Conseil sobre',
+    base: 'classique',
+    nameFont: 'georgia', nameSize: 24, nameWeight: 400, nameAlign: 'left', nameCase: 'normal',
+    metierFont: 'georgia', metierSize: 11, metierWeight: 400, metierStyle: 'italic', metierCase: 'normal',
+    contactFont: 'helvetica', contactSize: 9, contactSep: '   |   ',
+    bodyFont: 'georgia', bodySize: 10.5,
+    sectionFont: 'georgia', sectionSize: 11, sectionWeight: 600, sectionCase: 'normal', sectionTracking: 0.02, sectionStyle: 'underline',
+    sectionDecoration: 'underline-thin',
+    datePosition: 'right',
+    bulletChar: '·',
+    spacingScale: 1.0,
+  },
+  {
+    id: 'edito',
+    name: 'Édito magazine',
+    base: 'classique',
+    nameFont: 'sourceserif', nameSize: 30, nameWeight: 400, nameAlign: 'left', nameCase: 'normal', nameTracking: -0.02,
+    metierFont: 'sourceserif', metierSize: 12, metierWeight: 400, metierStyle: 'italic', metierCase: 'normal',
+    contactFont: 'jetbrains', contactSize: 8.5, contactSep: ' / ',
+    bodyFont: 'sourceserif', bodySize: 10.5,
+    sectionFont: 'sourceserif', sectionSize: 11, sectionWeight: 600, sectionCase: 'normal',
+    sectionDecoration: 'none',
+    datePosition: 'right',
+    bulletChar: '—',
+    spacingScale: 1.05,
+  },
+  {
+    id: 'swiss',
+    name: 'Suisse minimaliste',
+    base: 'moderne',
+    nameFont: 'inter', nameSize: 20, nameWeight: 500, nameAlign: 'left', nameCase: 'normal', nameTracking: -0.01,
+    metierFont: 'inter', metierSize: 10, metierWeight: 400, metierStyle: 'normal', metierCase: 'upper', metierTracking: 0.15,
+    contactFont: 'inter', contactSize: 9, contactSep: '   ·   ',
+    bodyFont: 'inter', bodySize: 9.5,
+    sectionFont: 'inter', sectionSize: 9, sectionWeight: 500, sectionCase: 'upper', sectionTracking: 0.18,
+    sectionDecoration: 'none',
+    datePosition: 'right',
+    bulletChar: '–',
+    spacingScale: 1.1,
+  },
+  {
+    id: 'architect',
+    name: 'Architecte',
+    base: 'moderne',
+    nameFont: 'inter', nameSize: 14, nameWeight: 600, nameAlign: 'left', nameCase: 'lower', nameTracking: 0.05,
+    metierFont: 'inter', metierSize: 11, metierWeight: 400, metierStyle: 'normal', metierCase: 'lower', metierTracking: 0.02,
+    contactFont: 'jetbrains', contactSize: 8.5, contactSep: '  •  ',
+    bodyFont: 'inter', bodySize: 9.5,
+    sectionFont: 'inter', sectionSize: 9.5, sectionWeight: 600, sectionCase: 'lower', sectionTracking: 0.03, sectionStyle: 'accent-color',
+    sectionDecoration: 'left-bar',
+    datePosition: 'right',
+    bulletChar: '·',
+    spacingScale: 1.0,
+  },
+  {
+    id: 'academic',
+    name: 'Académique centré',
+    base: 'serif',
+    nameFont: 'sourceserif', nameSize: 26, nameWeight: 400, nameAlign: 'center', nameCase: 'normal',
+    metierFont: 'sourceserif', metierSize: 11, metierWeight: 400, metierStyle: 'italic', metierCase: 'normal',
+    contactFont: 'helvetica', contactSize: 8.5, contactSep: '   ·   ',
+    bodyFont: 'sourceserif', bodySize: 10.5,
+    sectionFont: 'sourceserif', sectionSize: 12, sectionWeight: 600, sectionCase: 'smcaps', sectionTracking: 0.06, sectionAlign: 'center',
+    sectionDecoration: 'ornament-center',
+    datePosition: 'inline',
+    bulletChar: '·',
+    spacingScale: 1.0,
+  },
+  {
+    id: 'brutaliste',
+    name: 'Brutaliste',
+    base: 'moderne',
+    nameFont: 'inter', nameSize: 28, nameWeight: 800, nameAlign: 'left', nameCase: 'upper', nameTracking: -0.02,
+    metierFont: 'jetbrains', metierSize: 10, metierWeight: 400, metierStyle: 'normal', metierCase: 'lower', metierTracking: 0.02,
+    contactFont: 'jetbrains', contactSize: 8.5, contactSep: '   ·   ',
+    bodyFont: 'inter', bodySize: 10,
+    sectionFont: 'jetbrains', sectionSize: 9, sectionWeight: 500, sectionCase: 'upper', sectionTracking: 0.1,
+    sectionDecoration: 'left-bar',
+    datePosition: 'right',
+    bulletChar: '—',
+    spacingScale: 0.95,
+  },
+  {
+    id: 'neoclassique',
+    name: 'Néo-classique',
+    base: 'serif',
+    nameFont: 'sourceserif', nameSize: 24, nameWeight: 600, nameAlign: 'left', nameCase: 'normal',
+    metierFont: 'inter', metierSize: 11, metierWeight: 400, metierStyle: 'normal', metierCase: 'upper', metierTracking: 0.12,
+    contactFont: 'inter', contactSize: 9, contactSep: '   ·   ',
+    bodyFont: 'sourceserif', bodySize: 10.5,
+    sectionFont: 'inter', sectionSize: 9.5, sectionWeight: 600, sectionCase: 'upper', sectionTracking: 0.15,
+    sectionDecoration: 'underline-thin',
+    datePosition: 'parens',
+    bulletChar: '·',
+    spacingScale: 1.0,
+  },
+  {
+    id: 'monoresume',
+    name: 'Mono-resume dev',
+    base: 'moderne',
+    nameFont: 'jetbrains', nameSize: 16, nameWeight: 500, nameAlign: 'left', nameCase: 'normal', nameTracking: 0,
+    metierFont: 'jetbrains', metierSize: 11, metierWeight: 400, metierStyle: 'normal', metierCase: 'normal',
+    contactFont: 'jetbrains', contactSize: 8.5, contactSep: ' / ',
+    bodyFont: 'inter', bodySize: 10,
+    sectionFont: 'jetbrains', sectionSize: 9.5, sectionWeight: 500, sectionCase: 'lower', sectionTracking: 0,
+    sectionDecoration: 'hashtag',
+    datePosition: 'right',
+    bulletChar: '›',
+    spacingScale: 0.95,
+  },
+  {
+    id: 'soft',
+    name: 'Sobre humaniste',
+    base: 'classique',
+    nameFont: 'jakarta', nameSize: 21, nameWeight: 700, nameAlign: 'left', nameCase: 'normal',
+    metierFont: 'jakarta', metierSize: 11, metierWeight: 500, metierStyle: 'normal', metierCase: 'normal',
+    contactFont: 'jakarta', contactSize: 9, contactSep: ' · ',
+    bodyFont: 'jakarta', bodySize: 10,
+    sectionFont: 'jakarta', sectionSize: 10, sectionWeight: 700, sectionCase: 'upper', sectionTracking: 0.1,
+    sectionDecoration: 'underline-thin',
+    datePosition: 'right',
+    bulletChar: '•',
+    spacingScale: 1.0,
+  },
+  {
+    id: 'editorial-mix',
+    name: 'Mix édito',
+    base: 'classique',
+    nameFont: 'sourceserif', nameSize: 26, nameWeight: 400, nameAlign: 'center', nameCase: 'normal',
+    metierFont: 'inter', metierSize: 9.5, metierWeight: 400, metierStyle: 'normal', metierCase: 'upper', metierTracking: 0.2,
+    contactFont: 'inter', contactSize: 8.5, contactSep: '   ·   ',
+    bodyFont: 'inter', bodySize: 10,
+    sectionFont: 'sourceserif', sectionSize: 13, sectionWeight: 400, sectionCase: 'normal', sectionStyle: 'italic',
+    sectionDecoration: 'none',
+    datePosition: 'right',
+    bulletChar: '·',
+    spacingScale: 1.05,
+  },
+];
+
+const PALETTES = [
+  { name: 'terra',    accent: '#C84B31', ink: '#1B1B1B' },
+  { name: 'slate',    accent: '#3D5A6C', ink: '#1B1B1B' },
+  { name: 'ocre',     accent: '#B47A1E', ink: '#1B1B1B' },
+  { name: 'olive',    accent: '#5C7340', ink: '#1B1B1B' },
+  { name: 'plum',     accent: '#6B3A4A', ink: '#1B1B1B' },
+  { name: 'graphite', accent: '#2A2A2A', ink: '#1B1B1B' },
+  { name: 'forêt',    accent: '#2D5043', ink: '#1B1B1B' },
+  { name: 'marine',   accent: '#1F3A5F', ink: '#1B1B1B' },
+  { name: 'rouille',  accent: '#9F5230', ink: '#1B1B1B' },
+];
+
+// ============================================================
+// MOTEUR DE RENDU SVG — prend (data, preset, palette) → SVG
+// ============================================================
+
+function renderCV(data, preset, palette) {
   const out = [];
-
-  out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SVG_W} ${SVG_H}" width="${SVG_W}" height="${SVG_H}" font-family="Inter, Helvetica, Arial, sans-serif">`);
-  out.push(`<rect width="100%" height="100%" fill="white"/>`);
-
-  // Nom + métier
-  if (data.nom) {
-    out.push(`<text x="${contentX}" y="${y + 18}" font-size="26" font-weight="600" fill="${ink}" style="letter-spacing: -0.02em">${esc(data.nom)}</text>`);
-    y += 28;
-  }
-  if (data.metier) {
-    out.push(`<text x="${contentX}" y="${y + 14}" font-size="12" font-weight="500" fill="${accent}">${esc(data.metier)}</text>`);
-    y += 22;
-  }
-
-  // Contact
-  const contactBits = [data.email, data.telephone, data.ville, data.linkedin].filter(Boolean);
-  if (contactBits.length) {
-    const wrapped = wrapText(contactBits.join('   ·   '), 4.4, w);
-    for (const line of wrapped.slice(0, 2)) {
-      out.push(`<text x="${contentX}" y="${y + 10}" font-size="9" fill="${soft}" style="letter-spacing: 0.02em">${esc(line)}</text>`);
-      y += 12;
-    }
-  }
-  y += 8;
-
-  // Calculer la longueur de la barre accent (toute la hauteur du contenu)
-  const barStart = margin + 5;
-
-  function addSection(title, contentFn) {
-    if (y > SVG_H - 80) return;
-    y += 8;
-    out.push(`<text x="${contentX}" y="${y + 8}" font-size="10" font-weight="600" fill="${accent}" style="letter-spacing: 0.16em; text-transform: uppercase">${esc(title)}</text>`);
-    y += 18;
-    contentFn();
-    y += 6;
-  }
-
-  if (data.profil) {
-    addSection('Profil', () => {
-      const wrapped = wrapText(data.profil, 4.4, w);
-      for (const line of wrapped.slice(0, 4)) {
-        out.push(`<text x="${contentX}" y="${y}" font-size="10" fill="${ink}">${esc(line)}</text>`);
-        y += 13;
-      }
-    });
-  }
-
-  if (data.experiences.length) {
-    addSection('Expérience', () => {
-      for (const exp of data.experiences) {
-        if (y > SVG_H - 60) break;
-        const ttl = [exp.poste, exp.entreprise].filter(Boolean).join(' · ');
-        out.push(`<text x="${contentX}" y="${y}" font-size="11" font-weight="600" fill="${ink}">${esc(ttl)}</text>`);
-        y += 13;
-        const meta = [exp.periode, exp.lieu].filter(Boolean).join(' — ');
-        if (meta) {
-          out.push(`<text x="${contentX}" y="${y}" font-size="9" fill="${soft}">${esc(meta)}</text>`);
-          y += 13;
-        }
-        for (const m of exp.missions) {
-          const wrapped = wrapText(m, 4.4, w - 14);
-          for (let i = 0; i < wrapped.length; i++) {
-            const prefix = i === 0 ? '— ' : '  ';
-            out.push(`<text x="${contentX}" y="${y}" font-size="10" fill="${ink}">${esc(prefix + wrapped[i])}</text>`);
-            y += 13;
-            if (y > SVG_H - 50) break;
-          }
-          if (y > SVG_H - 50) break;
-        }
-        y += 6;
-      }
-    });
-  }
-
-  if (data.formations.length) {
-    addSection('Formation', () => {
-      for (const f of data.formations) {
-        if (y > SVG_H - 40) break;
-        const ttl = [f.diplome, f.etablissement].filter(Boolean).join(' · ');
-        out.push(`<text x="${contentX}" y="${y}" font-size="11" font-weight="600" fill="${ink}">${esc(ttl)}</text>`);
-        y += 13;
-        const meta = [f.periode, f.lieu].filter(Boolean).join(' — ');
-        if (meta) {
-          out.push(`<text x="${contentX}" y="${y}" font-size="9" fill="${soft}">${esc(meta)}</text>`);
-          y += 13;
-        }
-        y += 4;
-      }
-    });
-  }
-
-  if (data.competences.length) {
-    addSection('Compétences', () => {
-      const wrapped = wrapText(data.competences.join('  ·  '), 4.4, w);
-      for (const line of wrapped.slice(0, 4)) {
-        out.push(`<text x="${contentX}" y="${y}" font-size="10" fill="${ink}">${esc(line)}</text>`);
-        y += 13;
-      }
-    });
-  }
-
-  if (data.langues.length) {
-    addSection('Langues', () => {
-      const langStr = data.langues.map(l => l.niveau ? `${l.nom} (${l.niveau})` : l.nom).join('  ·  ');
-      const wrapped = wrapText(langStr, 4.4, w);
-      for (const line of wrapped.slice(0, 2)) {
-        out.push(`<text x="${contentX}" y="${y}" font-size="10" fill="${ink}">${esc(line)}</text>`);
-        y += 13;
-      }
-    });
-  }
-
-  // Barre accent verticale gauche
-  out.push(`<rect x="${margin}" y="${barStart}" width="${accentBarW}" height="${y - barStart + 5}" fill="${accent}"/>`);
-
-  out.push('</svg>');
-  return out.join('\n');
-}
-
-// Design 3: ÉLÉGANT SERIF (Source Serif, typographie classique)
-function designSerif(data, palette) {
-  const margin = 55;
+  const margin = preset.base === 'serif' ? 55 : 48;
   const w = SVG_W - 2 * margin;
   const accent = palette.accent;
-  const ink = '#1A1A1A';
+  const ink = palette.ink;
   const soft = '#5A5A5A';
-  let y = margin + 10;
-  const out = [];
+
+  // En-tête (nom + métier + contacts) — dépend de l'alignement
+  let y = margin + 5;
+
+  // Pour les designs avec une barre verticale latérale gauche, on décale le contenu
+  const useLeftBar = (preset.sectionDecoration === 'left-bar');
+  const contentX = useLeftBar ? margin + 12 : margin;
+  const contentW = useLeftBar ? w - 12 : w;
+  const barStart = y;
 
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SVG_W} ${SVG_H}" width="${SVG_W}" height="${SVG_H}">`);
   out.push(`<rect width="100%" height="100%" fill="white"/>`);
 
-  // Nom centré + métier centré
+  // --- NOM ---
   if (data.nom) {
-    out.push(`<text x="${SVG_W/2}" y="${y + 8}" font-family="'Source Serif 4', 'Georgia', serif" font-size="26" font-weight="400" fill="${ink}" text-anchor="middle" style="letter-spacing: -0.01em">${esc(data.nom)}</text>`);
-    y += 26;
-  }
-  if (data.metier) {
-    out.push(`<text x="${SVG_W/2}" y="${y + 6}" font-family="'Source Serif 4', 'Georgia', serif" font-size="11" font-weight="400" fill="${accent}" text-anchor="middle" font-style="italic">${esc(data.metier)}</text>`);
-    y += 14;
+    const sz = preset.nameSize;
+    const align = preset.nameAlign;
+    const x = align === 'center' ? SVG_W / 2 : (align === 'right' ? SVG_W - margin : contentX);
+    const anchor = align === 'center' ? 'middle' : (align === 'right' ? 'end' : 'start');
+    const text = applyCase(data.nom, preset.nameCase);
+    const tracking = preset.nameTracking ? `letter-spacing:${preset.nameTracking}em;` : '';
+    out.push(`<text x="${x}" y="${y + sz * 0.85}" font-family="${FONTS[preset.nameFont]}" font-size="${sz}" font-weight="${preset.nameWeight}" fill="${ink}" text-anchor="${anchor}" style="${tracking}">${esc(text)}</text>`);
+    y += sz + 4;
   }
 
-  // Contact centré
+  // --- MÉTIER ---
+  if (data.metier) {
+    const sz = preset.metierSize;
+    const align = preset.nameAlign; // même alignement que nom
+    const x = align === 'center' ? SVG_W / 2 : (align === 'right' ? SVG_W - margin : contentX);
+    const anchor = align === 'center' ? 'middle' : (align === 'right' ? 'end' : 'start');
+    const text = applyCase(data.metier, preset.metierCase);
+    const tracking = preset.metierTracking ? `letter-spacing:${preset.metierTracking}em;` : '';
+    const style = preset.metierStyle === 'italic' ? 'italic' : 'normal';
+    out.push(`<text x="${x}" y="${y + sz * 0.85}" font-family="${FONTS[preset.metierFont]}" font-size="${sz}" font-weight="${preset.metierWeight}" font-style="${style}" fill="${accent}" text-anchor="${anchor}" style="${tracking}">${esc(text)}</text>`);
+    y += sz + 4;
+  }
+
+  // --- CONTACTS ---
   const contactBits = [data.email, data.telephone, data.ville, data.linkedin].filter(Boolean);
   if (contactBits.length) {
-    out.push(`<text x="${SVG_W/2}" y="${y + 12}" font-family="Helvetica, Arial, sans-serif" font-size="8.5" fill="${soft}" text-anchor="middle" style="letter-spacing: 0.08em">${esc(contactBits.join('   ·   '))}</text>`);
-    y += 20;
+    const sz = preset.contactSize;
+    const align = preset.nameAlign;
+    const x = align === 'center' ? SVG_W / 2 : (align === 'right' ? SVG_W - margin : contentX);
+    const anchor = align === 'center' ? 'middle' : (align === 'right' ? 'end' : 'start');
+    // Wrap si trop long
+    const fullContact = contactBits.join(preset.contactSep);
+    const wrapped = wrapText(fullContact, sz, preset.contactFont, contentW);
+    for (let i = 0; i < Math.min(wrapped.length, 2); i++) {
+      out.push(`<text x="${x}" y="${y + sz * 0.85}" font-family="${FONTS[preset.contactFont]}" font-size="${sz}" fill="${soft}" text-anchor="${anchor}">${esc(wrapped[i])}</text>`);
+      y += sz + 2;
+    }
   }
 
-  // Petit ornement
-  out.push(`<line x1="${SVG_W/2 - 15}" y1="${y}" x2="${SVG_W/2 + 15}" y2="${y}" stroke="${accent}" stroke-width="0.8"/>`);
-  y += 16;
+  y += 6 * preset.spacingScale;
 
+  // --- Décorations sous l'en-tête ---
+  if (preset.sectionDecoration === 'ornament-center' && preset.nameAlign === 'center') {
+    out.push(`<line x1="${SVG_W/2 - 15}" y1="${y}" x2="${SVG_W/2 + 15}" y2="${y}" stroke="${accent}" stroke-width="0.8"/>`);
+    y += 12;
+  } else if (preset.sectionDecoration === 'underline-thin' && preset.id !== 'mckinsey') {
+    // (mckinsey utilise underline mais sur les titres, pas en bandeau)
+  }
+
+  // --- SECTIONS ---
   function addSection(title, contentFn) {
-    if (y > SVG_H - 80) return;
-    out.push(`<text x="${SVG_W/2}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="13" font-weight="600" fill="${ink}" text-anchor="middle" style="letter-spacing: 0.05em">${esc(title)}</text>`);
-    y += 18;
+    if (y > SVG_H - 60) return;
+    // Respiration accrue avant chaque section pour qu'elles soient bien distinctes
+    y += 10 * preset.spacingScale;
+    const sectAlign = preset.sectionAlign || preset.nameAlign;
+    const sectX = sectAlign === 'center' ? SVG_W / 2 : contentX;
+    const sectAnchor = sectAlign === 'center' ? 'middle' : 'start';
+    const sectColor = preset.sectionStyle === 'accent-color' ? accent : ink;
+
+    let displayTitle = title;
+    if (preset.sectionCase === 'upper') displayTitle = title.toUpperCase();
+    else if (preset.sectionCase === 'lower') displayTitle = title.toLowerCase();
+    else if (preset.sectionCase === 'smcaps') displayTitle = title.toUpperCase();
+    if (preset.sectionDecoration === 'hashtag') displayTitle = '# ' + displayTitle.toLowerCase();
+
+    const tracking = preset.sectionTracking ? `letter-spacing:${preset.sectionTracking}em;` : '';
+    const fontStyle = preset.sectionStyle === 'italic' ? 'italic' : 'normal';
+
+    out.push(`<text x="${sectX}" y="${y + preset.sectionSize * 0.85}" font-family="${FONTS[preset.sectionFont]}" font-size="${preset.sectionSize}" font-weight="${preset.sectionWeight}" font-style="${fontStyle}" fill="${sectColor}" text-anchor="${sectAnchor}" style="${tracking}">${esc(displayTitle)}</text>`);
+
+    // décoration : underline
+    if (preset.sectionDecoration === 'underline-thin') {
+      const underY = y + preset.sectionSize + 2;
+      out.push(`<line x1="${contentX}" y1="${underY}" x2="${SVG_W - margin}" y2="${underY}" stroke="${accent}" stroke-width="0.5" opacity="0.5"/>`);
+    }
+    if (preset.sectionDecoration === 'ornament-center' && sectAlign === 'center') {
+      const ornY = y + preset.sectionSize + 4;
+      out.push(`<line x1="${SVG_W/2 - 8}" y1="${ornY}" x2="${SVG_W/2 + 8}" y2="${ornY}" stroke="${accent}" stroke-width="0.6"/>`);
+    }
+
+    y += preset.sectionSize + 10 * preset.spacingScale;
     contentFn();
-    y += 10;
+    y += 4 * preset.spacingScale;
   }
 
+  // --- Profil ---
+  // Signature visuelle : italique par défaut (= "voix personnelle / présentation")
+  // Sauf si le preset utilise déjà l'italique pour autre chose (style édito)
   if (data.profil) {
     addSection('Profil', () => {
-      const wrapped = wrapText(data.profil, 4.5, w);
-      for (const line of wrapped.slice(0, 4)) {
-        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="10.5" fill="${ink}">${esc(line)}</text>`);
-        y += 14;
+      const profileItalic = preset.id !== 'edito' && preset.id !== 'editorial-mix'; // ces 2 utilisent déjà l'italique ailleurs
+      const wrapped = wrapText(data.profil, preset.bodySize, preset.bodyFont, contentW);
+      for (const line of wrapped.slice(0, 5)) {
+        const fs = profileItalic ? 'italic' : 'normal';
+        out.push(`<text x="${contentX}" y="${y + preset.bodySize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${preset.bodySize}" font-style="${fs}" fill="${ink}">${esc(line)}</text>`);
+        y += preset.bodySize + 3;
       }
     });
   }
 
+  // --- Expériences ---
   if (data.experiences.length) {
     addSection('Expérience professionnelle', () => {
       for (const exp of data.experiences) {
         if (y > SVG_H - 60) break;
-        const ttl = [exp.poste, exp.entreprise].filter(Boolean).join(', ');
-        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="11" font-weight="600" fill="${ink}">${esc(ttl)}</text>`);
-        y += 13;
-        const meta = [exp.periode, exp.lieu].filter(Boolean).join(' · ');
-        if (meta) {
-          out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="9.5" fill="${soft}" font-style="italic">${esc(meta)}</text>`);
-          y += 14;
-        }
-        for (const m of exp.missions) {
-          const wrapped = wrapText(m, 4.5, w - 14);
-          for (let i = 0; i < wrapped.length; i++) {
-            const prefix = i === 0 ? '· ' : '  ';
-            out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="10.5" fill="${ink}">${esc(prefix + wrapped[i])}</text>`);
-            y += 13;
-            if (y > SVG_H - 50) break;
+
+        // Ligne titre : poste — entreprise (à gauche) + période (à droite ou inline)
+        const ttl = [exp.poste, exp.entreprise].filter(Boolean).join(preset.id === 'mckinsey' ? ', ' : ' — ');
+        const lineSize = preset.bodySize + 0.5;
+
+        if (preset.datePosition === 'right' && exp.periode) {
+          // Titre à gauche
+          out.push(`<text x="${contentX}" y="${y + lineSize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${lineSize}" font-weight="700" fill="${ink}">${esc(ttl)}</text>`);
+          // Date à droite
+          out.push(`<text x="${SVG_W - margin}" y="${y + lineSize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${lineSize - 1}" fill="${soft}" text-anchor="end">${esc(exp.periode)}</text>`);
+          y += lineSize + 3;
+          if (exp.lieu) {
+            out.push(`<text x="${contentX}" y="${y + (preset.bodySize - 1) * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${preset.bodySize - 1}" fill="${soft}" font-style="italic">${esc(exp.lieu)}</text>`);
+            y += preset.bodySize + 2;
           }
-          if (y > SVG_H - 50) break;
+        } else if (preset.datePosition === 'parens') {
+          const fullTtl = exp.periode ? `${ttl} (${exp.periode})` : ttl;
+          out.push(`<text x="${contentX}" y="${y + lineSize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${lineSize}" font-weight="700" fill="${ink}">${esc(fullTtl)}</text>`);
+          y += lineSize + 3;
+          if (exp.lieu) {
+            out.push(`<text x="${contentX}" y="${y + (preset.bodySize - 1) * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${preset.bodySize - 1}" fill="${soft}" font-style="italic">${esc(exp.lieu)}</text>`);
+            y += preset.bodySize + 2;
+          }
+        } else {
+          // inline (sous titre)
+          out.push(`<text x="${contentX}" y="${y + lineSize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${lineSize}" font-weight="700" fill="${ink}">${esc(ttl)}</text>`);
+          y += lineSize + 2;
+          const meta = [exp.periode, exp.lieu].filter(Boolean).join(' · ');
+          if (meta) {
+            out.push(`<text x="${contentX}" y="${y + (preset.bodySize - 1) * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${preset.bodySize - 1}" fill="${soft}" font-style="italic">${esc(meta)}</text>`);
+            y += preset.bodySize + 2;
+          }
         }
-        y += 6;
+
+        // Missions
+        for (const m of exp.missions) {
+          const prefix = preset.bulletChar ? preset.bulletChar + ' ' : '';
+          const indentX = contentX + (preset.bulletChar ? 10 : 0);
+          const wrapped = wrapText(m, preset.bodySize, preset.bodyFont, contentW - 12);
+          for (let i = 0; i < wrapped.length; i++) {
+            if (y > SVG_H - 50) break;
+            const text = i === 0 ? (prefix + wrapped[i]) : ('  ' + wrapped[i]);
+            const lineX = i === 0 ? contentX : indentX;
+            out.push(`<text x="${lineX}" y="${y + preset.bodySize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${preset.bodySize}" fill="${ink}">${esc(text)}</text>`);
+            y += preset.bodySize + 2;
+          }
+        }
+        y += 5 * preset.spacingScale;
       }
     });
   }
 
+  // --- Formation ---
   if (data.formations.length) {
     addSection('Formation', () => {
       for (const f of data.formations) {
-        if (y > SVG_H - 40) break;
-        const ttl = [f.diplome, f.etablissement].filter(Boolean).join(', ');
-        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="11" font-weight="600" fill="${ink}">${esc(ttl)}</text>`);
-        y += 13;
-        const meta = [f.periode, f.lieu].filter(Boolean).join(' · ');
-        if (meta) {
-          out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="9.5" fill="${soft}" font-style="italic">${esc(meta)}</text>`);
-          y += 14;
+        if (y > SVG_H - 30) break;
+        const ttl = [f.diplome, f.etablissement].filter(Boolean).join(preset.id === 'mckinsey' ? ', ' : ' — ');
+        const lineSize = preset.bodySize + 0.5;
+
+        if (preset.datePosition === 'right' && f.periode) {
+          out.push(`<text x="${contentX}" y="${y + lineSize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${lineSize}" font-weight="700" fill="${ink}">${esc(ttl)}</text>`);
+          out.push(`<text x="${SVG_W - margin}" y="${y + lineSize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${lineSize - 1}" fill="${soft}" text-anchor="end">${esc(f.periode)}</text>`);
+          y += lineSize + 3;
+        } else if (preset.datePosition === 'parens') {
+          const fullTtl = f.periode ? `${ttl} (${f.periode})` : ttl;
+          out.push(`<text x="${contentX}" y="${y + lineSize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${lineSize}" font-weight="700" fill="${ink}">${esc(fullTtl)}</text>`);
+          y += lineSize + 3;
+        } else {
+          out.push(`<text x="${contentX}" y="${y + lineSize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${lineSize}" font-weight="700" fill="${ink}">${esc(ttl)}</text>`);
+          y += lineSize + 2;
+          if (f.periode) {
+            out.push(`<text x="${contentX}" y="${y + (preset.bodySize - 1) * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${preset.bodySize - 1}" fill="${soft}" font-style="italic">${esc(f.periode)}</text>`);
+            y += preset.bodySize + 2;
+          }
         }
-        y += 4;
+        y += 3 * preset.spacingScale;
       }
     });
   }
 
+  // --- Compétences ---
+  // Signature visuelle : séparateur typographique espacé `·` ou `/`, pas une liste à virgules.
+  // L'œil perçoit immédiatement "liste d'items" et non texte continu, tout en restant
+  // un texte linéaire pour les parsers ATS.
   if (data.competences.length) {
     addSection('Compétences', () => {
-      const wrapped = wrapText(data.competences.join(', '), 4.5, w);
+      // Le séparateur dépend du preset pour rester dans son style
+      let sep;
+      if (preset.id === 'monoresume') sep = ' / ';
+      else if (preset.id === 'brutaliste') sep = '   ·   ';
+      else if (preset.bodyFont === 'sourceserif' || preset.bodyFont === 'georgia') sep = ' · ';
+      else sep = '  ·  ';
+      const wrapped = wrapText(data.competences.join(sep), preset.bodySize, preset.bodyFont, contentW);
       for (const line of wrapped.slice(0, 4)) {
-        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="10.5" fill="${ink}">${esc(line)}</text>`);
-        y += 13;
+        out.push(`<text x="${contentX}" y="${y + preset.bodySize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${preset.bodySize}" fill="${ink}">${esc(line)}</text>`);
+        y += preset.bodySize + 3;
       }
     });
   }
 
+  // --- Langues ---
+  // Signature visuelle : format `Langue (Niveau)` systématique, séparateurs nets
+  // pour qu'on voie immédiatement qu'on lit des paires clé-valeur (et pas une phrase).
   if (data.langues.length) {
     addSection('Langues', () => {
-      const langStr = data.langues.map(l => l.niveau ? `${l.nom} (${l.niveau})` : l.nom).join(' · ');
-      const wrapped = wrapText(langStr, 4.5, w);
+      const langStr = data.langues.map(l => l.niveau ? `${l.nom} (${l.niveau})` : l.nom).join('   ·   ');
+      const wrapped = wrapText(langStr, preset.bodySize, preset.bodyFont, contentW);
       for (const line of wrapped.slice(0, 2)) {
-        out.push(`<text x="${margin}" y="${y}" font-family="'Source Serif 4', 'Georgia', serif" font-size="10.5" fill="${ink}">${esc(line)}</text>`);
-        y += 13;
+        out.push(`<text x="${contentX}" y="${y + preset.bodySize * 0.85}" font-family="${FONTS[preset.bodyFont]}" font-size="${preset.bodySize}" fill="${ink}">${esc(line)}</text>`);
+        y += preset.bodySize + 3;
       }
     });
+  }
+
+  // Barre latérale gauche (si preset le demande)
+  if (useLeftBar) {
+    out.push(`<rect x="${margin}" y="${barStart}" width="3" height="${y - barStart}" fill="${accent}"/>`);
   }
 
   out.push('</svg>');
   return out.join('\n');
 }
 
-// ============================================================
-// PALETTES — variantes d'accent pour le bouton "regénérer"
-// ============================================================
+function applyCase(text, mode) {
+  if (mode === 'upper') return text.toUpperCase();
+  if (mode === 'lower') return text.toLowerCase();
+  if (mode === 'smcaps') return text.toUpperCase();
+  return text;
+}
 
-const PALETTES = [
-  { name: 'terra',    accent: '#C84B31' },
-  { name: 'slate',    accent: '#3D5A6C' },
-  { name: 'ocre',     accent: '#B47A1E' },
-  { name: 'olive',    accent: '#5C7340' },
-  { name: 'plum',     accent: '#6B3A4A' },
-  { name: 'graphite', accent: '#2A2A2A' },
-];
+// Sélection des 3 designs à afficher : on prend 3 presets aléatoires distincts
+// avec contrainte : au moins 1 "base classique" et 1 "base différente"
+function pickDesigns(seed) {
+  // seed = numéro de génération, sert à varier
+  const all = [...PRESETS];
+  // Tri pseudo-aléatoire basé sur seed
+  const rng = mulberry32(seed * 13 + 7);
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  // On prend les 3 premiers avec bases différentes si possible
+  const result = [];
+  const usedBases = new Set();
+  for (const p of all) {
+    if (result.length >= 3) break;
+    if (!usedBases.has(p.base) || result.length >= 2) {
+      result.push(p);
+      usedBases.add(p.base);
+    }
+  }
+  while (result.length < 3) {
+    for (const p of all) {
+      if (!result.includes(p)) { result.push(p); break; }
+    }
+  }
+  return result;
+}
 
-let currentPaletteIdx = 0;
+// PRNG déterministe (mulberry32) — pour reproductibilité
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = a;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
 
-const DESIGNS = [
-  { name: 'classique', fn: designClassique, title: 'Classique sobre', traits: 'Helvetica · structure verticale · sections capitales' },
-  { name: 'moderne',   fn: designModerne,   title: 'Moderne minimal', traits: 'Inter · barre d\'accent latérale · titres sm-caps' },
-  { name: 'serif',     fn: designSerif,     title: 'Élégant serif',   traits: 'Source Serif · titres centrés · pour profils académiques/littéraires' },
-];
-
-// ============================================================
 // GENERATION PDF (à partir des données, structure linéaire)
 // ============================================================
 
 const { PDFDocument, PDFName, StandardFonts, rgb } = PDFLib;
 
-async function generatePdf(data, designName, palette) {
+async function generatePdf(data, preset, palette) {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([595, 842]);
   const fontReg = await pdf.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const fontItal = await pdf.embedFont(StandardFonts.HelveticaOblique);
+  // Pour la cohérence ATS, le PDF utilise toujours des polices standard (Helvetica)
+  // même si la preview SVG montre une typo plus stylée. La structure linéaire est
+  // strictement la même quel que soit le preset choisi.
 
   const margin = 50;
   const w = 595 - 2 * margin;
@@ -1529,8 +1639,13 @@ generateBtn.addEventListener('click', () => {
   }
 });
 
+// Seed pour la regénération : on l'incrémente à chaque clic sur "Regénérer"
+let currentSeed = Math.floor(Math.random() * 10000);
+let currentPicks = null;    // [{ preset, palette }] x3
+let currentPalette = null;
+
 regenBtn.addEventListener('click', () => {
-  currentPaletteIdx = (currentPaletteIdx + 1) % PALETTES.length;
+  currentSeed++;
   renderDesigns();
 });
 
@@ -1572,31 +1687,49 @@ function renderDetected() {
 
 function renderDesigns() {
   designsGrid.innerHTML = '';
-  const palette = PALETTES[currentPaletteIdx];
-  for (const design of DESIGNS) {
-    const svg = design.fn(currentData, palette);
+
+  // On tire 3 presets distincts pour le seed actuel, et UNE palette différente
+  // par design pour maximiser la variété visuelle
+  const picks = pickDesigns(currentSeed);
+  const rng = mulberry32(currentSeed * 23 + 11);
+  // 3 palettes distinctes (shuffled depuis la liste complète)
+  const shuffledPalettes = [...PALETTES];
+  for (let i = shuffledPalettes.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [shuffledPalettes[i], shuffledPalettes[j]] = [shuffledPalettes[j], shuffledPalettes[i]];
+  }
+  currentPicks = picks.map((p, i) => ({
+    preset: p,
+    palette: shuffledPalettes[i % shuffledPalettes.length],
+  }));
+
+  for (let i = 0; i < currentPicks.length; i++) {
+    const { preset, palette } = currentPicks[i];
+    const svg = renderCV(currentData, preset, palette);
     const card = document.createElement('div');
     card.className = 'design-card';
     card.innerHTML = `
       <div class="design-card-header">
-        <h3>${escapeHtml(design.title)}</h3>
-        <span class="tag">accent · ${palette.name}</span>
+        <h3>${escapeHtml(preset.name)}</h3>
+        <span class="tag">${escapeHtml(preset.base)} · ${escapeHtml(palette.name)}</span>
       </div>
       <div class="design-preview-wrap">${svg}</div>
       <div class="design-card-footer">
-        <span class="traits">${escapeHtml(design.traits)}</span>
-        <button class="btn tiny" data-design="${design.name}">↓ PDF</button>
+        <span class="traits">${describePreset(preset)}</span>
+        <button class="btn tiny" data-idx="${i}">↓ PDF</button>
       </div>
     `;
     card.querySelector('button').addEventListener('click', async (e) => {
       e.target.disabled = true;
       e.target.innerHTML = '<span class="spinner"></span>...';
       try {
-        const bytes = await generatePdf(currentData, design.name, palette);
+        const idx = parseInt(e.target.dataset.idx);
+        const { preset, palette } = currentPicks[idx];
+        const bytes = await generatePdf(currentData, preset, palette);
         const blob = new Blob([bytes], { type: 'application/pdf' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `cv_${design.name}_${(currentData.nom || 'candidat').toLowerCase().replace(/\s+/g, '_')}.pdf`;
+        a.download = `cv_${preset.id}_${(currentData.nom || 'candidat').toLowerCase().replace(/\s+/g, '_')}.pdf`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       } catch(err) {
@@ -1609,6 +1742,28 @@ function renderDesigns() {
     });
     designsGrid.appendChild(card);
   }
+}
+
+function describePreset(p) {
+  const traits = [];
+  // Police principale
+  const fontLabels = {
+    helvetica: 'Helvetica', inter: 'Inter', jakarta: 'Jakarta',
+    georgia: 'Georgia', sourceserif: 'Source Serif', times: 'Times',
+    jetbrains: 'JetBrains Mono',
+  };
+  traits.push(fontLabels[p.nameFont] || p.nameFont);
+  if (p.bodyFont !== p.nameFont) traits.push('+ ' + (fontLabels[p.bodyFont] || p.bodyFont));
+  if (p.nameAlign === 'center') traits.push('centré');
+  if (p.datePosition === 'right') traits.push('dates alignées droite');
+  if (p.datePosition === 'parens') traits.push('dates entre parenthèses');
+  if (p.sectionDecoration === 'left-bar') traits.push('barre latérale');
+  if (p.sectionDecoration === 'underline-thin') traits.push('titres soulignés');
+  if (p.sectionDecoration === 'hashtag') traits.push('titres préfixés #');
+  if (p.sectionDecoration === 'ornament-center') traits.push('ornement central');
+  if (p.nameCase === 'upper') traits.push('nom en majuscules');
+  if (p.nameCase === 'lower') traits.push('nom en minuscules');
+  return escapeHtml(traits.slice(0, 3).join(' · '));
 }
 
 function escapeHtml(s) {
